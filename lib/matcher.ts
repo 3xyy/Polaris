@@ -67,16 +67,37 @@ interface IntakeStatus {
   cutoffStr: string | null;
 }
 
+// Resources are all in Santa Clara County, so intake hours must be evaluated in Pacific time —
+// not the server's clock (Vercel runs UTC). Derive the wall-clock day + minutes in LA.
+const DAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+function pacificParts(now: Date): { day: number; minutes: number } {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+      .formatToParts(now)
+      .map((p) => [p.type, p.value]),
+  );
+  let hour = parseInt(parts.hour, 10);
+  if (hour === 24) hour = 0; // some ICU builds emit "24" for midnight
+  return { day: DAY_INDEX[parts.weekday] ?? now.getDay(), minutes: hour * 60 + parseInt(parts.minute, 10) };
+}
+
 /**
  * Whether someone can still get a bed *tonight*. We key off the intake cutoff (the last time
  * you can arrive), not the overnight close time — that's the number that decides routing.
+ * Evaluated in Pacific time so it's correct regardless of the server's timezone.
  */
 export function intakeStatus(resource: Resource, now: Date): IntakeStatus {
-  const today = resource.hours[now.getDay()];
+  const { day, minutes: curM } = pacificParts(now);
+  const today = resource.hours[day];
   if (!today) return { openToday: false, intakeOpenNow: false, minutesToCutoff: null, cutoffStr: null };
   const cutoffStr = today.intakeCutoff ?? today.close;
   const cutoffM = parseClock(cutoffStr);
-  const curM = now.getHours() * 60 + now.getMinutes();
   const minutesToCutoff = cutoffM - curM;
   return {
     openToday: true,

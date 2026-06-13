@@ -9,7 +9,7 @@ import { SEED_RESOURCES } from "./resources";
 import type { Resource } from "./types";
 
 // A fixed evening time so tests are deterministic regardless of when they run.
-const EVENING = new Date("2026-06-13T19:30:00");
+const EVENING = new Date("2026-06-13T19:30:00-07:00");
 
 function resource(overrides: Partial<Resource>): Resource {
   return {
@@ -62,17 +62,17 @@ describe("confidenceFor", () => {
 
 describe("intakeStatus", () => {
   it("is open before the cutoff", () => {
-    const s = intakeStatus(resource({}), new Date("2026-06-13T19:30:00"));
+    const s = intakeStatus(resource({}), new Date("2026-06-13T19:30:00-07:00"));
     expect(s.intakeOpenNow).toBe(true);
     expect(s.minutesToCutoff).toBe(90);
   });
   it("is closed after the cutoff", () => {
-    const s = intakeStatus(resource({}), new Date("2026-06-13T22:00:00"));
+    const s = intakeStatus(resource({}), new Date("2026-06-13T22:00:00-07:00"));
     expect(s.intakeOpenNow).toBe(false);
   });
   it("reports closed when there are no hours that day", () => {
     const r = resource({ hours: { ...resource({}).hours, 6: null } });
-    const s = intakeStatus(r, new Date("2026-06-13T19:30:00")); // 2026-06-13 is a Saturday
+    const s = intakeStatus(r, new Date("2026-06-13T19:30:00-07:00")); // 2026-06-13 is a Saturday
     expect(s.openToday).toBe(false);
   });
 });

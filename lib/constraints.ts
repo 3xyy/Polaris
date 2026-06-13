@@ -70,8 +70,14 @@ export function extractConstraints(message: string): Constraints {
     }
   }
 
-  // General family signals without a number
-  if (out.family == null && /\b(my kids|my children|my family|with my (son|daughter|baby|kids|children)|we are a family|mi familia|mis hijos|mis ni[ñn]os|somos una familia)\b/.test(text)) {
+  // General family signals without a number (broadened so routing never depends on the LLM
+  // to notice a child — "my little one", "my son", "mi bebé", etc.)
+  if (
+    out.family == null &&
+    /\b(my (kids?|child(ren)?|son|daughter|baby|babies|little one|little boy|little girl|toddler|infant|family)|with my (son|daughter|baby|kids?|child(ren)?|little one)|we are a family|just me and my|mi (familia|hijo|hija|beb[eé]|peque[ñn][oa])|mis (hijos|hijas|ni[ñn]os|ni[ñn]as)|somos una familia)\b/.test(
+      text,
+    )
+  ) {
     out.family = true;
   }
 

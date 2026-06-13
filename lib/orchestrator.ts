@@ -96,15 +96,24 @@ export async function handleInbound(args: {
     }
   }
 
-  // 3) Understand the need. Deterministic extraction is authoritative; Backboard (if
-  //    configured) fills in fields the regexes missed. mergeConstraints(llm, extracted)
-  //    keeps the deterministic values and only borrows the LLM's where ours are blank.
-  let extracted = extractConstraints(body);
-  if (backboardEnabled()) {
+  // 3) Understand the need. Deterministic extraction is authoritative and handles the common
+  //    path instantly. Backboard is only consulted when the deterministic pass came back THIN
+  //    (an off-script phrasing that yielded no actionable need) — so the golden path never
+  //    waits on a model call, and a slow/failed LLM call can't degrade routing.
+  const extracted = extractConstraints(body);
+  let merged = mergeConstraints(conv.constraints, extracted);
+  const thin =
+    !extracted.zip &&
+    !extracted.family &&
+    extracted.childrenCount == null &&
+    !extracted.gender &&
+    !extracted.ada &&
+    !extracted.pets;
+  if (backboardEnabled() && thin) {
     const llm = await enrichConstraints(body);
-    if (llm) extracted = mergeConstraints(llm, extracted);
+    if (llm) merged = mergeConstraints(llm, merged); // deterministic/prior win; LLM fills blanks
   }
-  conv = { ...conv, constraints: mergeConstraints(conv.constraints, extracted) };
+  conv = { ...conv, constraints: merged };
 
   // 4) Need a ZIP before we can rank by proximity.
   if (!conv.constraints.zip) {

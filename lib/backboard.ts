@@ -14,7 +14,7 @@ const API_KEY = process.env.BACKBOARD_API_KEY;
 const BASE_URL = process.env.BACKBOARD_BASE_URL || "https://app.backboard.io/api";
 const PROVIDER = process.env.BACKBOARD_PROVIDER || "openai";
 const MODEL = process.env.BACKBOARD_MODEL || "gpt-4o-mini";
-const TIMEOUT_MS = 6000;
+const TIMEOUT_MS = 4500;
 
 export function backboardEnabled(): boolean {
   return Boolean(API_KEY);

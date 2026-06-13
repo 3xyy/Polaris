@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+/* ====================================================================
+   Polaris — "Live Sky" design system
+   A deep-space mission-control aesthetic. The North Star motif maps to the
+   product: a fixed point you can navigate by. Dark, calm, high-contrast.
+   ==================================================================== */
+
+@theme {
+  --color-void: #050810;
+  --color-deep: #080d1c;
+  --color-panel: #0c1326;
+  --color-panel-2: #111a33;
+  --color-edge: #1d2848;
+  --color-ink: #e9edfb;
+  --color-muted: #8b95b9;
+  --color-faint: #4b5680;
+  --color-aurora: #4fd1c5;
+  --color-sky: #38bdf8;
+  --color-north: #f7c95a;
+  --color-confirmed: #35d6a4;
+  --color-stale: #fbbf24;
+  --color-full: #f8716f;
+  --color-violet: #a78bfa;
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  background: var(--color-void);
+  color-scheme: dark;
+}
+
+body {
+  color: var(--color-ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  background-color: var(--color-void);
+  /* Layered starfield + the North Star glow up top. Subtle so text stays readable. */
+  background-image:
+    radial-gradient(1100px 600px at 50% -10%, rgba(247, 201, 90, 0.12), transparent 60%),
+    radial-gradient(900px 700px at 85% 10%, rgba(79, 209, 197, 0.08), transparent 60%),
+    radial-gradient(800px 800px at 10% 30%, rgba(56, 189, 248, 0.06), transparent 60%),
+    radial-gradient(1.4px 1.4px at 20% 30%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.2px 1.2px at 70% 20%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1.1px 1.1px at 40% 70%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 85% 60%, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1px 1px at 15% 85%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1.3px 1.3px at 60% 90%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 90% 35%, rgba(255, 255, 255, 0.4), transparent);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* ---- reusable surfaces ---- */
+.panel {
+  background: linear-gradient(160deg, rgba(17, 26, 51, 0.85), rgba(12, 19, 38, 0.85));
+  border: 1px solid var(--color-edge);
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+}
+
+.panel-glow {
+  box-shadow:
+    0 0 0 1px rgba(79, 209, 197, 0.15),
+    0 0 30px -8px rgba(79, 209, 197, 0.35);
+}
+
+.hairline {
+  border-color: var(--color-edge);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--color-edge);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+.text-glow-north {
+  text-shadow: 0 0 24px rgba(247, 201, 90, 0.55);
+}
+
+/* ---- animations ---- */
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(79, 209, 197, 0.5); }
+  70% { box-shadow: 0 0 0 10px rgba(79, 209, 197, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(79, 209, 197, 0); }
+}
+.animate-pulse-ring { animation: pulse-ring 1.6s infinite; }
+
+@keyframes sweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.animate-sweep { animation: sweep 3.2s linear infinite; }
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+.animate-twinkle { animation: twinkle 2.4s ease-in-out infinite; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-rise { animation: rise 0.4s ease-out both; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-edge); border-radius: 999px; }

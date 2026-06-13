@@ -1,5 +1,6 @@
 import type { Conversation } from "./types";
 import { extractConstraints, isCrisis, mergeConstraints } from "./constraints";
+import { backboardEnabled, enrichConstraints } from "./backboard";
 import { rankResources } from "./matcher";
 import { getConversation, getResources, upsertConversation, bumpImpact, getResource } from "./store";
 import { beginVerification } from "./verify";
@@ -95,8 +96,14 @@ export async function handleInbound(args: {
     }
   }
 
-  // 3) Understand the need.
-  const extracted = extractConstraints(body);
+  // 3) Understand the need. Deterministic extraction is authoritative; Backboard (if
+  //    configured) fills in fields the regexes missed. mergeConstraints(llm, extracted)
+  //    keeps the deterministic values and only borrows the LLM's where ours are blank.
+  let extracted = extractConstraints(body);
+  if (backboardEnabled()) {
+    const llm = await enrichConstraints(body);
+    if (llm) extracted = mergeConstraints(llm, extracted);
+  }
   conv = { ...conv, constraints: mergeConstraints(conv.constraints, extracted) };
 
   // 4) Need a ZIP before we can rank by proximity.

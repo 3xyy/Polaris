@@ -19,7 +19,8 @@ Polaris owns the routing logic; the AI layer only renders language. Keep it that
 - `lib/orchestrator.ts` — conversation state machine: crisis check → extract → ask ZIP → rank → verify-if-stale (`VERIFY_THRESHOLD = 0.7`) → route.
 - `lib/verify.ts` — Ghost Bed Radar: places the outbound Twilio call, resolves the DTMF result, updates trust, texts the person.
 - `lib/constraints.ts` — deterministic EN/ES extraction + crisis detection.
-- `lib/ai.ts` — deterministic, bilingual reply templates. **This is the LLM seam** — swap in Backboard/Vercel AI Gateway here, but keep deterministic as the fallback.
+- `lib/ai.ts` — deterministic, bilingual reply templates. Replies stay deterministic on purpose.
+- `lib/backboard.ts` — optional Backboard LLM that enriches constraint extraction (orchestrator step 3). Gated by `BACKBOARD_API_KEY`; deterministic extraction stays authoritative and a timeout/failure falls back silently.
 - `lib/store.ts` — state. In-memory by default (pinned on `globalThis` to survive HMR); auto-uses Upstash Redis if env vars present.
 - `lib/resources.ts` — seed data (real SCC orgs, illustrative availability — see `DATA_NOTICE`).
 - `lib/geo.ts` — ZIP centroids, haversine, transit/drive ETA.

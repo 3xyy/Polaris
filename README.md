@@ -51,7 +51,7 @@ People without stable housing often have no smartphone and no data — but they 
 | `lib/verify.ts` — the outbound verification call engine | Next.js / Vercel — hosting |
 | `lib/constraints.ts` — EN/ES need extraction (unit-tested) | |
 
-Replies are **deterministic templates** (`lib/ai.ts`), bilingual EN/ES — chosen on purpose: SMS copy to someone in crisis must be calm and predictable, never a model surprise. An LLM layer (Backboard / Vercel AI Gateway) can paraphrase or translate further; the deterministic extractor + composer are the dependable floor, and they keep the demo from ever depending on an external model call. See `lib/ai.ts` for the seam.
+Replies are **deterministic templates** (`lib/ai.ts`), bilingual EN/ES — chosen on purpose: SMS copy to someone in crisis must be calm and predictable, never a model surprise. The **Backboard LLM** (`lib/backboard.ts`, the event sponsor's API) enriches *constraint extraction* for free-form phrasings the regexes miss, but the deterministic extractor stays authoritative and a slow/failed call silently falls back — so the demo never depends on an external model call. Set `BACKBOARD_API_KEY` to enable it.
 
 ## Tech stack
 
@@ -127,6 +127,7 @@ See `.env.example`. All optional for local simulation; required for live telepho
 | `PUBLIC_BASE_URL` | Public origin Twilio fetches for TwiML/callbacks (tunnel or Vercel URL) |
 | `DEMO_SHELTER_PHONE` | Pre-verified phone that receives the verification call in demos |
 | `NEXT_PUBLIC_POLARIS_NUMBER` | The number shown on the landing page |
+| `BACKBOARD_API_KEY` (+ `BACKBOARD_PROVIDER`/`BACKBOARD_MODEL`) | Optional — enriches constraint extraction via Backboard's LLM API |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Optional shared state for multi-instance Vercel (also accepts `KV_REST_API_*`) |
 
 ## Deploying to Vercel

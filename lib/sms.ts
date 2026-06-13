@@ -30,11 +30,19 @@ export interface TwilioResult {
   simulated?: boolean;
 }
 
+// Twilio's shared WhatsApp sandbox number (same for all accounts). Override via env if needed.
+const WHATSAPP_FROM = process.env.TWILIO_WHATSAPP_FROM || "whatsapp:+14155238886";
+
 export async function sendSms(to: string, body: string): Promise<TwilioResult> {
   if (!twilioConfigured()) {
     console.log(`[sms:simulated] -> ${to}: ${body}`);
     return { ok: true, simulated: true };
   }
+  // If the recipient is a WhatsApp address ("whatsapp:+1..."), reply on WhatsApp from the
+  // sandbox number. This lets the full demo run without A2P 10DLC SMS registration; plain SMS
+  // still works (and switches on automatically once A2P is approved).
+  const isWhatsApp = to.startsWith("whatsapp:");
+  const from = isWhatsApp ? WHATSAPP_FROM : FROM!;
   const res = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${SID}/Messages.json`,
     {
@@ -43,7 +51,7 @@ export async function sendSms(to: string, body: string): Promise<TwilioResult> {
         Authorization: authHeader(),
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({ To: to, From: FROM!, Body: body }),
+      body: new URLSearchParams({ To: to, From: from, Body: body }),
     },
   );
   const data = (await res.json()) as { sid?: string; message?: string };

@@ -58,19 +58,19 @@ export async function beginVerification(
 }
 
 /**
- * Handle the provider's keypad response (or a timeout). Updates state, then sends the user the
- * outcome over SMS — the async second half of the conversation.
+ * Handle the provider's keypad response (or a timeout). Updates state and texts the user the
+ * outcome. Returns the outbound message text (so the web simulator can render it) or null.
  */
 export async function resolveVerification(
   verificationId: string,
   digit: string | null,
-): Promise<void> {
+): Promise<string | null> {
   const v = await getVerification(verificationId);
-  if (!v || v.status !== "calling") return; // already resolved or unknown
+  if (!v || v.status !== "calling") return null; // already resolved or unknown
 
   const resource = await getResource(v.resourceId);
   const conversation = await getConversation(v.conversationId);
-  if (!resource || !conversation) return;
+  if (!resource || !conversation) return null;
   const now = Date.now();
 
   if (digit === "1") {
@@ -86,47 +86,50 @@ export async function resolveVerification(
       openBedsReported: resource.openBeds,
     });
     await bumpImpact({ verifiedRoutes: 1 });
-    await setConvStatus(conversation, "routed");
 
     const fresh = await getResource(resource.id);
-    const match = (await rankResources(conversation.constraints, await getResources(), new Date()))
-      .find((m) => m.resource.id === resource.id);
+    const match = rankResources(conversation.constraints, await getResources(), new Date()).find(
+      (m) => m.resource.id === resource.id,
+    );
     const secs = Math.max(1, Math.round((now - v.requestedAt) / 1000));
     const body = match
       ? routeReply(match, conversation.constraints, conversation.lang, { justConfirmedSeconds: secs })
       : `✅ ${fresh?.name} confirmed space — head there now.`;
+    await saveOutbound(conversation, "routed", body);
     await sendSms(conversation.id, body);
-    return;
+    return body;
   }
 
   if (digit === "2") {
     // Full — the ghost bed we just prevented. Update and fail over to the next option.
-    await updateResource(resource.id, {
-      lastVerifiedAt: now,
-      verifyMethod: "phone",
-      openBeds: 0,
-    });
+    await updateResource(resource.id, { lastVerifiedAt: now, verifyMethod: "phone", openBeds: 0 });
     await updateVerification(v.id, { status: "full", respondedAt: now, openBedsReported: 0 });
     await bumpImpact({ ghostBedsAvoided: 1 });
-    await setConvStatus(conversation, "matching");
 
-    const next = (await rankResources(conversation.constraints, await getResources(), new Date()))
-      .find((m) => m.resource.id !== resource.id);
-    await sendSms(conversation.id, fullFallback(next?.resource.name ?? null, conversation.lang));
-    return;
+    const next = rankResources(conversation.constraints, await getResources(), new Date()).find(
+      (m) => m.resource.id !== resource.id,
+    );
+    const body = fullFallback(next?.resource.name ?? null, conversation.lang);
+    await saveOutbound(conversation, "matching", body);
+    await sendSms(conversation.id, body);
+    return body;
   }
 
   // No answer / timeout.
   await updateVerification(v.id, { status: "no_answer", respondedAt: now });
-  await setConvStatus(conversation, "matching");
-  await sendSms(
-    conversation.id,
+  const body =
     conversation.lang === "es"
       ? `No contestaron en ${resource.name}. No te mando sin confirmar. Sigo intentando con otra opción.`
-      : `No answer at ${resource.name}. I won't send you without confirming — let me try another option.`,
-  );
+      : `No answer at ${resource.name}. I won't send you without confirming — let me try another option.`;
+  await saveOutbound(conversation, "matching", body);
+  await sendSms(conversation.id, body);
+  return body;
 }
 
-async function setConvStatus(conv: Conversation, status: Conversation["status"]): Promise<void> {
-  await upsertConversation({ ...conv, status, updatedAt: Date.now() });
+async function saveOutbound(
+  conv: Conversation,
+  status: Conversation["status"],
+  body: string,
+): Promise<void> {
+  await upsertConversation({ ...conv, status, lastReplies: [body], updatedAt: Date.now() });
 }

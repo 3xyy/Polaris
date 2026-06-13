@@ -65,6 +65,7 @@ Replies are **deterministic templates** (`lib/ai.ts`), bilingual EN/ES — chose
 ```
 app/
   page.tsx              landing
+  demo/page.tsx         phone-style SMS simulator over the REAL backend (the demo surface)
   dashboard/page.tsx    the Live Sky mission-control board (polls /api/dashboard)
   provider/page.tsx     Provider Beacon — shelters report their own availability
   api/
@@ -108,6 +109,10 @@ curl -s localhost:3000/api/sms -H 'content-type: application/json' \
 ```
 
 Watch `/dashboard` update live. `/provider` lets you push availability beacons.
+
+## Demo mode & carrier status
+
+`/demo` is a phone-style simulator that drives the **real** backend — the same matcher, Ghost Bed Radar, and live dashboard — so it's the reliable surface for live demos. Real SMS/voice are fully wired for **Twilio** and **Telnyx**; US *outbound* SMS is gated by **A2P 10DLC**, a mandatory carrier registration that applies to every provider equally (Twilio error `30034` until approved). *Inbound* SMS and the *voice* verification call are not A2P-gated. The moment a campaign is approved, the number's SMS works with zero code changes.
 
 ## Going live with Twilio
 

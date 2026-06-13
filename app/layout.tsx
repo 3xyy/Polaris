@@ -29,12 +29,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <div className="flex items-center gap-1 text-sm">
               <NavLink href="/dashboard">Live Sky</NavLink>
               <NavLink href="/provider">Provider</NavLink>
-              <a
-                href="#"
+              <Link
+                href="/demo"
                 className="ml-2 rounded-full border border-north/40 bg-north/10 px-3.5 py-1.5 text-[13px] font-semibold text-north transition-colors hover:bg-north/20"
               >
-                Text the line
-              </a>
+                Try it ★
+              </Link>
             </div>
           </nav>
         </header>

@@ -20,7 +20,12 @@ async function handle(req: Request): Promise<Response> {
     }
   }
 
-  await resolveVerification(vid, digits);
+  const message = await resolveVerification(vid, digits);
+
+  // The web simulator calls this with ?format=json to render the outcome in the chat.
+  if (url.searchParams.get("format") === "json") {
+    return Response.json({ ok: true, message });
+  }
 
   const xml =
     `<?xml version="1.0" encoding="UTF-8"?>` +

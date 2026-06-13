@@ -38,6 +38,7 @@ export interface InboundResult {
   replies: string[];
   conversation: Conversation;
   verificationStarted: boolean;
+  verificationId?: string;
 }
 
 export async function handleInbound(args: {
@@ -89,10 +90,10 @@ export async function handleInbound(args: {
     if (ranked.length > 0) {
       const top = ranked[0];
       conv = { ...conv, topMatchId: top.resource.id };
-      await beginVerification(top.resource, conv);
+      const v = await beginVerification(top.resource, conv);
       const reply = verifying(top.resource.name, lang);
       await finalize(conv, "verifying", [reply]);
-      return { replies: [reply], conversation: conv, verificationStarted: true };
+      return { replies: [reply], conversation: conv, verificationStarted: true, verificationId: v.id };
     }
   }
 
@@ -135,10 +136,10 @@ export async function handleInbound(args: {
 
   // 6) The core decision: trust it, or verify it live first.
   if (top.confidence < VERIFY_THRESHOLD) {
-    await beginVerification(top.resource, conv);
+    const v = await beginVerification(top.resource, conv);
     const reply = verifying(top.resource.name, lang);
     await finalize(conv, "verifying", [reply]);
-    return { replies: [reply], conversation: conv, verificationStarted: true };
+    return { replies: [reply], conversation: conv, verificationStarted: true, verificationId: v.id };
   }
 
   // 7) Already fresh — route immediately.

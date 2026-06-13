@@ -28,10 +28,16 @@ export default function Home() {
           </p>
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link
-              href="/dashboard"
+              href="/demo"
               className="rounded-full bg-north px-6 py-3 text-sm font-semibold text-void shadow-[0_0_30px_-6px_rgba(247,201,90,0.6)] transition-transform hover:scale-[1.03]"
             >
-              Open the Live Sky →
+              Try the live demo →
+            </Link>
+            <Link
+              href="/dashboard"
+              className="rounded-full border border-edge bg-white/5 px-6 py-3 text-sm font-semibold text-ink transition-colors hover:bg-white/10"
+            >
+              Open Live Sky
             </Link>
             <Link
               href="/provider"
@@ -41,8 +47,8 @@ export default function Home() {
             </Link>
           </div>
           <p className="mono mt-6 text-sm text-muted">
-            Or just text{" "}
-            <span className="text-aurora">{POLARIS_NUMBER}</span> — works on any phone.
+            On a real phone, text{" "}
+            <span className="text-aurora">{POLARIS_NUMBER}</span> — SMS/voice wired for Twilio &amp; Telnyx.
           </p>
         </div>
 

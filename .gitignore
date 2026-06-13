@@ -39,9 +39,7 @@ yarn-error.log*
 
 # playwright MCP artifacts + loose screenshots (kept ones live in docs/)
 .playwright-mcp/
-/dashboard.png
-/landing.png
-/provider.png
+/*.png
 
 # typescript
 *.tsbuildinfo

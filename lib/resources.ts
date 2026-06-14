@@ -237,6 +237,38 @@ export const SEED_RESOURCES: Resource[] = [
   svc("gardner-clinic", "Gardner Health Services", "clinic", "160 E Virginia St", "San José", "95112", 37.3262, -121.8788, daytime("08:00", "17:00"), "Sliding-scale medical + dental."),
   svc("homefirst-dropin", "HomeFirst Day Drop-in Center", "drop_in", "2011 Little Orchard St", "San José", "95125", 37.3076, -121.8676, daytime("08:00", "16:00"), "Showers, mail, phone charging, case help."),
   svc("sunnyvale-warming", "Sunnyvale Warming Center", "warming", "620 E Maude Ave", "Sunnyvale", "94089", 37.3897, -122.0205, nightly("20:00", "06:00", "23:00"), "Cold-weather overnight warming center."),
+
+  // ---- more shelters (Milpitas / San José / nearby) ----
+  shelter("salvation-emmanuel", "Salvation Army Emmanuel House", "405 N 4th St", "San José", "95112", 37.353, -121.892, 60, 7, "men", { sobriety: true, notes: "Men's residential recovery program." }),
+  shelter("lifemoves-montgomery", "LifeMoves Montgomery Street Inn", "358 N Montgomery St", "San José", "95110", 37.334, -121.901, 90, 5, "men", { notes: "Men 18+; on-site case management." }),
+  shelter("faith-in-action", "Faith in Action Rotating Shelter", "Rotating congregations", "San José", "95112", 37.349, -121.88, 15, 4, "any", { families: true, famCap: 3, notes: "Rotating congregational shelter." }),
+  shelter("milpitas-cws", "Milpitas Cold Weather Shelter", "1325 E Calaveras Blvd", "Milpitas", "95035", 37.428, -121.887, 40, 9, "any", { notes: "Seasonal overflow shelter." }),
+  shelter("lifemoves-mtnview", "LifeMoves Mountain View", "2566 Leghorn St", "Mountain View", "94043", 37.418, -122.093, 100, 8, "families", { families: true, famCap: 5, notes: "Family shelter + housing services." }),
+  shelter("bill-wilson-family", "Bill Wilson Family Living Center", "693 S 2nd St", "San José", "95112", 37.328, -121.882, 30, 6, "families", { families: true, famCap: 4, ada: true, notes: "Families with children." }),
+
+  // ---- food, groceries, meals ----
+  svc("cathedral-breakfast", "St. Joseph's Cathedral Breakfast", "food", "80 S Market St", "San José", "95113", 37.3354, -121.891, daytime("07:00", "08:30"), "Free breakfast, no questions asked."),
+  svc("cityteam-meals", "CityTeam Free Meals", "food", "1297 N 13th St", "San José", "95112", 37.3651, -121.8966, daytime("11:30", "12:30"), "Free hot lunch daily."),
+  svc("sunnyvale-meals", "Sunnyvale Community Dinner", "food", "725 Kifer Rd", "Sunnyvale", "94086", 37.3793, -122.0114, daytime("18:00", "19:00"), "Free community dinner."),
+  svc("berryessa-pantry", "Berryessa Food Pantry", "grocery", "3050 Berryessa Rd", "San José", "95132", 37.379, -121.859, daytime("09:00", "11:00"), "Neighborhood grocery pantry."),
+  svc("eastside-center", "Eastside Neighborhood Center", "grocery", "2150 Alum Rock Ave", "San José", "95116", 37.37, -121.835, daytime("09:00", "16:00"), "Food + family services."),
+  svc("west-valley-cs", "West Valley Community Services", "grocery", "10104 Vista Dr", "Cupertino", "95014", 37.323, -122.009, daytime("10:00", "16:00"), "Free groceries + case management."),
+  svc("gardner-pantry", "Gardner Family Health Pantry", "grocery", "160 E Virginia St", "San José", "95112", 37.3262, -121.8788, daytime("09:00", "12:00"), "Food pantry for patients + neighbors."),
+  svc("salvation-pantry", "Salvation Army Food Pantry", "grocery", "359 N 4th St", "San José", "95112", 37.3525, -121.8918, daytime("09:00", "12:00"), "Free grocery pantry."),
+
+  // ---- showers, hygiene, clinics ----
+  svc("dignity-sj", "Dignity on Wheels — San José", "shower", "Roving (downtown)", "San José", "95110", 37.328, -121.89, daytime("09:00", "13:00"), "Mobile showers + laundry."),
+  svc("fcc-showers", "First Christian Church Showers", "shower", "80 S 5th St", "San José", "95112", 37.337, -121.883, daytime("08:00", "11:00"), "Free showers + hygiene kits."),
+  svc("indian-health", "Indian Health Center", "clinic", "1333 Meridian Ave", "San José", "95125", 37.305, -121.901, daytime("08:00", "17:00"), "Medical + dental; everyone welcome."),
+  svc("foothill-chc", "Foothill Community Health Center", "clinic", "2585 Samaritan Dr", "San José", "95124", 37.257, -121.943, daytime("08:00", "17:00"), "Sliding-scale clinic."),
+  svc("school-health", "School Health Clinics", "clinic", "976 Lenzen Ave", "San José", "95126", 37.336, -121.912, daytime("08:00", "17:00"), "Low-cost medical care."),
+
+  // ---- warm spaces, charging, drop-in ----
+  svc("mlk-library", "Dr. MLK Jr. Library", "warming", "150 E San Fernando St", "San José", "95112", 37.3358, -121.885, daytime("10:00", "20:00"), "Warm space, charging, restrooms, wifi."),
+  svc("milpitas-library", "Milpitas Public Library", "warming", "160 N Main St", "Milpitas", "95035", 37.429, -121.907, daytime("10:00", "18:00"), "Warm space, charging, wifi."),
+  svc("sunnyvale-library", "Sunnyvale Public Library", "warming", "665 W Olive Ave", "Sunnyvale", "94086", 37.378, -122.038, daytime("10:00", "18:00"), "Warm space, charging, wifi."),
+  svc("defrank-center", "Billy DeFrank LGBTQ+ Center", "drop_in", "938 The Alameda", "San José", "95126", 37.334, -121.908, daytime("12:00", "18:00"), "Drop-in, resources, community."),
+  svc("sacred-heart-closet", "Sacred Heart Clothes Closet", "drop_in", "1381 S 1st St", "San José", "95110", 37.3169, -121.8769, daytime("10:00", "15:00"), "Free clothing + hygiene."),
 ];
 
 // Compact builder for non-shelter services (food/grocery/shower/clinic/drop-in/warming).
@@ -267,5 +299,37 @@ function svc(
     lastVerifiedAt: null,
     verifyMethod: "seed",
     notes,
+  };
+}
+
+// Compact builder for shelters (overnight beds). Defaults to ADA-accessible, 9 PM intake cutoff.
+function shelter(
+  id: string,
+  name: string,
+  address: string,
+  city: string,
+  zip: string,
+  lat: number,
+  lng: number,
+  totalBeds: number,
+  openBeds: number,
+  genderPolicy: Resource["genderPolicy"],
+  opts: { families?: boolean; famCap?: number; ada?: boolean; pets?: boolean; sobriety?: boolean; cutoff?: string; notes?: string } = {},
+): Resource {
+  return {
+    id, name, type: "shelter", address, city, zip, lat, lng,
+    phone: "+14085550000",
+    hours: nightly("17:00", "08:00", opts.cutoff ?? "21:00"),
+    servesFamilies: opts.families ?? false,
+    familyCapacity: opts.famCap ?? 0,
+    genderPolicy,
+    adaAccessible: opts.ada ?? true,
+    allowsPets: opts.pets ?? false,
+    sobrietyRequired: opts.sobriety ?? false,
+    totalBeds,
+    openBeds,
+    lastVerifiedAt: null,
+    verifyMethod: "seed",
+    notes: opts.notes ?? "",
   };
 }

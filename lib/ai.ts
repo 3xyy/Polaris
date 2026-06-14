@@ -194,8 +194,11 @@ export function locationAck(lang: Lang): string {
     : "Got your location 📍. Tell me what you need (e.g. 'bed tonight, 2 kids') and I'll find a shelter near you.";
 }
 
+// Feet under a tenth of a mile, miles above (1 decimal, or whole miles past 10).
 function fmtDist(ft: number): string {
-  return ft >= 1000 ? `${(ft / 5280).toFixed(1)} mi` : `${Math.round(ft / 10) * 10} ft`;
+  const mi = ft / 5280;
+  if (mi >= 0.1) return `${mi.toFixed(mi >= 10 ? 0 : 1)} mi`;
+  return `${Math.round(ft / 10) * 10} ft`;
 }
 
 // The cutoff time is carried inside the human-readable reasons; pull it back out for copy.

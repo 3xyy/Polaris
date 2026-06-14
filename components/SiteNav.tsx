@@ -11,7 +11,7 @@ export function SiteNav() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-black/[0.07] bg-white/90 backdrop-blur-xl">
-      <nav className="mx-auto flex h-14 max-w-7xl items-center justify-between px-5">
+      <nav className="mx-auto flex h-14 max-w-7xl items-center gap-8 px-5">
         <Link href="/" className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-[#111827]">
           <span className="text-[#2563EB]">✦</span> POLARIS
         </Link>

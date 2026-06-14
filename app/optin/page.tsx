@@ -14,7 +14,7 @@ export default function OptIn() {
         <div className="mt-3 text-3xl font-bold text-ink">
           Text <span className="text-north">HOUSING</span>
         </div>
-        <div className="mt-1 text-xl font-semibold text-ink">to (408) 889-7563</div>
+        <div className="mt-1 text-xl font-semibold text-ink">to (408) 555-0100</div>
         <p className="mt-4 text-sm text-muted">
           Polaris replies with shelter availability near you — confirmed by phone before we send you anywhere.
         </p>

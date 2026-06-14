@@ -3,7 +3,7 @@ import { PolarisMark } from "@/components/PolarisMark";
 import { Donut } from "@/components/Donut";
 import { DATA_NOTICE } from "@/lib/resources";
 
-const POLARIS_NUMBER = process.env.NEXT_PUBLIC_POLARIS_NUMBER ?? "+1 (408) 889-7563";
+const POLARIS_NUMBER = process.env.NEXT_PUBLIC_POLARIS_NUMBER ?? "+1 (408) 555-0100";
 
 export default function Home() {
   return (

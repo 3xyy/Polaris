@@ -4,8 +4,8 @@
 
 ## Setup (before you're called up)
 - Projector / screen → **`mhs-navy.vercel.app/dashboard`** (full-screen Live Sky).
-- **Phone A** = the person (WhatsApp to the sandbox number, or SMS to +1 408 889 7563).
-- **Phone B** = the shelter (receives the verify call → presses 1/2). *(Wired to +1 341 345 7909.)*
+- **Phone A** = the person (WhatsApp to the sandbox number, or SMS to your Twilio number).
+- **Phone B** = the shelter (receives the verify call → presses 1/2). *(Set `DEMO_SHELTER_PHONE` to this number.)*
 - Open **`/demo`** in a tab as an instant fallback. Hit **Reset demo** right before you start.
 - Roles: **A — narrator** (talks, drives the dashboard). **B — the person** (texts) + holds Phone B.
 

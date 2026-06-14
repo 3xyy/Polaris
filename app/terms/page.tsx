@@ -39,7 +39,7 @@ export default function Terms() {
         </Section>
 
         <Section title="Contact">
-          <span className="text-ink">yuvrajdar9@gmail.com</span>
+          <span className="text-ink">contact@polaris.example</span>
         </Section>
       </div>
     </div>

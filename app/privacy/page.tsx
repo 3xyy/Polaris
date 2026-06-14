@@ -46,7 +46,7 @@ export default function Privacy() {
         </Section>
 
         <Section title="Contact">
-          Questions about this policy: <span className="text-ink">yuvrajdar9@gmail.com</span>.
+          Questions about this policy: <span className="text-ink">contact@polaris.example</span>.
         </Section>
       </div>
     </div>

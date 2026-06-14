@@ -120,6 +120,16 @@ export async function upsertConversation(conv: Conversation): Promise<void> {
   await write(state);
 }
 
+/** Resolve a conversation by its short-lived map capability token (for /api/map). */
+export async function getConversationByMapToken(token: string): Promise<Conversation | undefined> {
+  if (!token) return undefined;
+  const state = await read();
+  const now = Date.now();
+  return Object.values(state.conversations).find(
+    (c) => c.mapToken === token && (c.mapTokenExp ?? 0) > now,
+  );
+}
+
 export async function listConversations(limit = 20): Promise<Conversation[]> {
   const state = await read();
   return Object.values(state.conversations)

@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import type { Conversation } from "./types";
 import { extractConstraints, isCrisis, mergeConstraints } from "./constraints";
 import { backboardEnabled, enrichConstraints } from "./backboard";
@@ -194,7 +195,10 @@ export async function handleLocation(args: {
       const dir = await getDirections({ lat, lng }, { lat: r.lat, lng: r.lng });
       if (dir) {
         const text = directionsReply(r.name, dir, conv.lang);
-        const mediaUrl = `${baseUrl()}/api/map?cid=${encodeURIComponent(from)}`;
+        // Unguessable, short-lived capability so the map URL never exposes a phone number.
+        const token = randomBytes(24).toString("base64url");
+        conv = { ...conv, mapToken: token, mapTokenExp: Date.now() + 10 * 60_000 };
+        const mediaUrl = `${baseUrl()}/api/map?t=${token}`;
         await finalize(conv, "routed", [text]);
         return { replies: [text], mediaUrl, conversation: conv };
       }

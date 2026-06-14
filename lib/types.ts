@@ -114,6 +114,8 @@ export interface Conversation {
   channel: "sms" | "voice";
   lang: "en" | "es";
   location?: { lat: number; lng: number }; // set when the user shares a precise location
+  mapToken?: string; // unguessable, short-lived capability for the directions map image
+  mapTokenExp?: number; // epoch ms expiry for mapToken
   constraints: Constraints;
   lastMessage: string;
   lastReplies: string[];

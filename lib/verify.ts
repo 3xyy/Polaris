@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import type { Conversation, Resource, Verification } from "./types";
 import { baseUrl, placeCall, sendSms } from "./sms";
 import {
@@ -11,17 +12,17 @@ import {
   upsertConversation,
   getConversation,
 } from "./store";
-import { bedsNeededFor, rankResources } from "./matcher";
-import { fullFallback, routeReply } from "./ai";
+import { bedsNeededFor, nearestByType, rankResources } from "./matcher";
+import { directionsReply, fullFallback, planExtras, routeReply } from "./ai";
+import { getDirections, mapboxConfigured } from "./directions";
 
 /**
- * The Ghost Bed Radar engine.
+ * The Ghost Bed Radar engine + route composition.
  *
  * A "ghost bed" is a listing that says open but is actually full. Polaris refuses to route
  * someone to an unverified bed: it places a real outbound call to the provider, which answers
- * a single keypad question (press 1 = space, 2 = full). DTMF — not speech — so it is reliable
- * live. The result updates the resource's freshness and either confirms the route or fails
- * over to the next option, and is recorded as a ghost bed avoided / verified route.
+ * one keypad question (1 = space, 2 = full). DTMF — reliable live. On confirm, with the
+ * person's location we send real street directions, a route map image, and a nearby plan.
  */
 
 let counter = 0;
@@ -30,11 +31,66 @@ function vid(): string {
   return `v${Date.now().toString(36)}${counter}`;
 }
 
-/** Kick off a verification call for the chosen resource on behalf of a conversation. */
-export async function beginVerification(
+export interface RouteMessage {
+  text: string;
+  mediaUrl?: string;
+  routePolyline?: string;
+  mapToken?: string;
+  mapTokenExp?: number;
+}
+
+/**
+ * Build the message we send once a bed is secured. With a precise location we attach real
+ * driving directions, a map image (token-gated), and the nearest food + showers as a plan.
+ */
+export async function composeRoute(
+  conv: Conversation,
   resource: Resource,
-  conversation: Conversation,
-): Promise<Verification> {
+  lang: "en" | "es",
+  opts: { justConfirmedSeconds?: number; verifiedMinutesAgo?: number } = {},
+): Promise<RouteMessage> {
+  const resources = await getResources();
+
+  if (conv.location && mapboxConfigured()) {
+    const dir = await getDirections(conv.location, { lat: resource.lat, lng: resource.lng });
+    if (dir) {
+      const food = [
+        ...nearestByType("food", conv.location, resources, 1),
+        ...nearestByType("grocery", conv.location, resources, 1),
+      ].sort((a, b) => a.distanceMi - b.distanceMi)[0];
+      const shower = [
+        ...nearestByType("shower", conv.location, resources, 1),
+        ...nearestByType("drop_in", conv.location, resources, 1),
+      ].sort((a, b) => a.distanceMi - b.distanceMi)[0];
+      const extras = planExtras(
+        [
+          food && { icon: "🍽", name: food.resource.name, distanceMi: food.distanceMi },
+          shower && { icon: "🚿", name: shower.resource.name, distanceMi: shower.distanceMi },
+        ].filter(Boolean) as { icon: string; name: string; distanceMi: number }[],
+        lang,
+      );
+      const confirm = lang === "es" ? `✅ ${resource.name} confirmado. ` : `✅ ${resource.name} confirmed. `;
+      const callLine = lang === "es" ? "\n\nResponde LLAMAR para conectar." : "\n\nReply CALL to connect.";
+      const token = randomBytes(24).toString("base64url");
+      return {
+        text: confirm + directionsReply(resource.name, dir, lang) + extras + callLine,
+        mediaUrl: `${baseUrl()}/api/map?t=${token}`,
+        routePolyline: dir.polyline,
+        mapToken: token,
+        mapTokenExp: Date.now() + 10 * 60_000,
+      };
+    }
+  }
+
+  // Fallback: no location / no Mapbox — the confirmation-style route reply.
+  const match = rankResources(conv.constraints, resources, new Date(), conv.location).find(
+    (m) => m.resource.id === resource.id,
+  );
+  return { text: match ? routeReply(match, conv.constraints, lang, opts) : `✅ ${resource.name} — head there now.` };
+}
+
+/** Kick off a verification call for the chosen resource on behalf of a conversation. */
+export async function beginVerification(resource: Resource, conversation: Conversation): Promise<Verification> {
   const beds = bedsNeededFor(conversation.constraints);
   const verification: Verification = {
     id: vid(),
@@ -49,24 +105,18 @@ export async function beginVerification(
   };
   await addVerification(verification);
 
-  // In trial/demo mode we call a single pre-verified phone instead of the real intake line.
   const target = process.env.DEMO_SHELTER_PHONE || resource.phone;
-  const twimlUrl = `${baseUrl()}/api/verify/call?vid=${verification.id}`;
-  await placeCall(target, twimlUrl);
-
+  await placeCall(target, `${baseUrl()}/api/verify/call?vid=${verification.id}`);
   return verification;
 }
 
 /**
  * Handle the provider's keypad response (or a timeout). Updates state and texts the user the
- * outcome. Returns the outbound message text (so the web simulator can render it) or null.
+ * outcome (with map + directions on confirm). Returns the outbound text or null.
  */
-export async function resolveVerification(
-  verificationId: string,
-  digit: string | null,
-): Promise<string | null> {
+export async function resolveVerification(verificationId: string, digit: string | null): Promise<string | null> {
   const v = await getVerification(verificationId);
-  if (!v || v.status !== "calling") return null; // already resolved or unknown
+  if (!v || v.status !== "calling") return null;
 
   const resource = await getResource(v.resourceId);
   const conversation = await getConversation(v.conversationId);
@@ -74,62 +124,49 @@ export async function resolveVerification(
   const now = Date.now();
 
   if (digit === "1") {
-    // Confirmed — freshen the resource and route the person there.
     await updateResource(resource.id, {
       lastVerifiedAt: now,
       verifyMethod: "phone",
       openBeds: Math.max(resource.openBeds, v.bedsNeeded),
     });
-    await updateVerification(v.id, {
-      status: "confirmed",
-      respondedAt: now,
-      openBedsReported: resource.openBeds,
-    });
+    await updateVerification(v.id, { status: "confirmed", respondedAt: now, openBedsReported: resource.openBeds });
     await bumpImpact({ verifiedRoutes: 1 });
 
-    const fresh = await getResource(resource.id);
-    const match = rankResources(conversation.constraints, await getResources(), new Date()).find(
-      (m) => m.resource.id === resource.id,
-    );
     const secs = Math.max(1, Math.round((now - v.requestedAt) / 1000));
-    const body = match
-      ? routeReply(match, conversation.constraints, conversation.lang, { justConfirmedSeconds: secs })
-      : `✅ ${fresh?.name} confirmed space — head there now.`;
-    await saveOutbound(conversation, "routed", body);
-    await sendSms(conversation.id, body);
-    return body;
+    const fresh = (await getResource(resource.id)) ?? resource;
+    const rm = await composeRoute(conversation, fresh, conversation.lang, { justConfirmedSeconds: secs });
+    await upsertConversation({
+      ...conversation,
+      status: "routed",
+      routePolyline: rm.routePolyline,
+      mapToken: rm.mapToken,
+      mapTokenExp: rm.mapTokenExp,
+      lastReplies: [rm.text],
+      updatedAt: now,
+    });
+    await sendSms(conversation.id, rm.text, rm.mediaUrl);
+    return rm.text;
   }
 
   if (digit === "2") {
-    // Full — the ghost bed we just prevented. Update and fail over to the next option.
     await updateResource(resource.id, { lastVerifiedAt: now, verifyMethod: "phone", openBeds: 0 });
     await updateVerification(v.id, { status: "full", respondedAt: now, openBedsReported: 0 });
     await bumpImpact({ ghostBedsAvoided: 1 });
-
-    const next = rankResources(conversation.constraints, await getResources(), new Date()).find(
+    const next = rankResources(conversation.constraints, await getResources(), new Date(), conversation.location).find(
       (m) => m.resource.id !== resource.id,
     );
     const body = fullFallback(next?.resource.name ?? null, conversation.lang);
-    await saveOutbound(conversation, "matching", body);
+    await upsertConversation({ ...conversation, status: "matching", lastReplies: [body], updatedAt: now });
     await sendSms(conversation.id, body);
     return body;
   }
 
-  // No answer / timeout.
   await updateVerification(v.id, { status: "no_answer", respondedAt: now });
   const body =
     conversation.lang === "es"
       ? `No contestaron en ${resource.name}. No te mando sin confirmar. Sigo intentando con otra opción.`
       : `No answer at ${resource.name}. I won't send you without confirming — let me try another option.`;
-  await saveOutbound(conversation, "matching", body);
+  await upsertConversation({ ...conversation, status: "matching", lastReplies: [body], updatedAt: now });
   await sendSms(conversation.id, body);
   return body;
-}
-
-async function saveOutbound(
-  conv: Conversation,
-  status: Conversation["status"],
-  body: string,
-): Promise<void> {
-  await upsertConversation({ ...conv, status, lastReplies: [body], updatedAt: Date.now() });
 }

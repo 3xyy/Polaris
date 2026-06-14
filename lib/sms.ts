@@ -46,11 +46,12 @@ export interface SendResult {
  * Send an SMS. Plain SMS prefers Telnyx when configured (provider hedge); WhatsApp addresses
  * always go through Twilio. Falls back to Twilio, then to a logged simulation.
  */
-export async function sendSms(to: string, body: string): Promise<SendResult> {
+export async function sendSms(to: string, body: string, mediaUrl?: string): Promise<SendResult> {
   const isWhatsApp = to.startsWith("whatsapp:");
-  if (!isWhatsApp && telnyxConfigured()) return sendViaTelnyx(to, body);
-  if (twilioConfigured()) return sendViaTwilio(to, body, isWhatsApp);
-  console.log(`[sms:simulated] -> ${to}: ${body}`);
+  // Telnyx text-only path (media goes via Twilio); Telnyx isn't enabled in this build.
+  if (!isWhatsApp && !mediaUrl && telnyxConfigured()) return sendViaTelnyx(to, body);
+  if (twilioConfigured()) return sendViaTwilio(to, body, isWhatsApp, mediaUrl);
+  console.log(`[sms:simulated] -> ${to}: ${body}${mediaUrl ? ` [media ${mediaUrl}]` : ""}`);
   return { ok: true, simulated: true };
 }
 
@@ -71,14 +72,16 @@ async function sendViaTelnyx(to: string, body: string): Promise<SendResult> {
     : { ok: false, error: JSON.stringify(data.errors ?? data), provider: "telnyx" };
 }
 
-async function sendViaTwilio(to: string, body: string, isWhatsApp: boolean): Promise<SendResult> {
+async function sendViaTwilio(to: string, body: string, isWhatsApp: boolean, mediaUrl?: string): Promise<SendResult> {
   const from = isWhatsApp ? WHATSAPP_FROM : FROM!;
+  const params = new URLSearchParams({ To: to, From: from, Body: body });
+  if (mediaUrl) params.set("MediaUrl", mediaUrl);
   const res = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${SID}/Messages.json`,
     {
       method: "POST",
       headers: { Authorization: twilioAuth(), "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ To: to, From: from, Body: body }),
+      body: params,
     },
   );
   const data = (await res.json()) as { sid?: string; message?: string };

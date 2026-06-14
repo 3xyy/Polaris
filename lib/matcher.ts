@@ -146,9 +146,11 @@ export function rankResources(
   constraints: Constraints,
   resources: Resource[],
   now: Date = new Date(),
+  originOverride?: { lat: number; lng: number },
 ): MatchResult[] {
   const beds = bedsNeededFor(constraints);
-  const origin = centroidForZip(constraints.zip);
+  // Prefer the person's real shared/geocoded location; fall back to a ZIP centroid.
+  const origin = originOverride ?? centroidForZip(constraints.zip);
   const nowMs = now.getTime();
 
   const results: MatchResult[] = [];
@@ -200,6 +202,20 @@ export function rankResources(
   }
 
   return results.sort((a, b) => b.score - a.score);
+}
+
+/** Nearest resources of a given type to an origin — for the "tonight's plan" suggestions. */
+export function nearestByType(
+  type: string,
+  origin: { lat: number; lng: number },
+  resources: Resource[],
+  limit = 1,
+): { resource: Resource; distanceMi: number }[] {
+  return resources
+    .filter((r) => r.type === type)
+    .map((r) => ({ resource: r, distanceMi: Math.round(distanceMiles(origin, { lat: r.lat, lng: r.lng }) * 10) / 10 }))
+    .sort((a, b) => a.distanceMi - b.distanceMi)
+    .slice(0, limit);
 }
 
 function buildReasons(

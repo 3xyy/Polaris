@@ -19,6 +19,7 @@ interface Constraints {
 interface Conversation {
   id: string; pseudonym: string; lang: string; constraints: Constraints;
   lastMessage: string; status: string; topMatchId: string | null;
+  routePolyline?: string | null;
   coords: { lat: number; lng: number } | null; updatedAt: number;
 }
 interface Verification {
@@ -104,10 +105,9 @@ export default function Dashboard() {
             <span className="text-[#2563EB]">✦</span> POLARIS
           </Link>
           <nav className="hidden items-center gap-1 text-[13px] md:flex">
-            <Tab active>Live Operations</Tab>
-            <Link href="/provider"><Tab>Providers</Tab></Link>
-            <Tab>Verification Queue</Tab>
-            <Tab>Analytics</Tab>
+            <Tab active>Live Sky</Tab>
+            <Link href="/provider"><Tab>Provider</Tab></Link>
+            <Link href="/demo"><Tab>Try it</Tab></Link>
           </nav>
         </div>
         <div className="flex items-center gap-3">
@@ -424,7 +424,7 @@ function Chip({ children }: { children: React.ReactNode }) {
 }
 function StatusPill({ status, className = "" }: { status: string; className?: string }) {
   const map: Record<string, [string, string]> = {
-    intake: [ACCENT, "intake"], matching: [WARNING, "matching"], verifying: [WARNING, "verifying"],
+    intake: [ACCENT, "intake"], locating: [ACCENT, "locating"], matching: [WARNING, "matching"], verifying: [WARNING, "verifying"],
     routed: [SUCCESS, "routed"], crisis: ["#8B5CF6", "crisis → 988"],
   };
   const [color, label] = map[status] ?? ["#6B7280", status];

@@ -227,4 +227,45 @@ export const SEED_RESOURCES: Resource[] = [
     verifyMethod: "seed",
     notes: "Showers, laundry, hygiene kits.",
   },
+  svc("second-harvest", "Second Harvest Food Bank", "food", "4001 N 1st St", "San José", "95134", 37.4101, -121.9416, daytime("09:00", "17:00"), "Free groceries; no ID needed. Call 2-1-1 for sites."),
+  svc("sacred-heart", "Sacred Heart Community Service", "food", "1381 S 1st St", "San José", "95110", 37.3169, -121.8769, daytime("10:00", "15:00"), "Food, clothing, and family support."),
+  svc("marthas-meals2", "Loaves & Fishes Family Kitchen", "food", "1500 Alum Rock Ave", "San José", "95116", 37.3496, -121.8456, daytime("11:00", "13:30"), "Free hot lunch daily."),
+  svc("cityteam-pantry", "CityTeam Food Pantry", "grocery", "1297 N 13th St", "San José", "95112", 37.3651, -121.8966, daytime("10:00", "16:00"), "Free grocery pantry."),
+  svc("sunnyvale-cs", "Sunnyvale Community Services", "grocery", "725 Kifer Rd", "Sunnyvale", "94086", 37.3793, -122.0114, daytime("09:00", "16:00"), "Free groceries + rent help."),
+  svc("milpitas-pantry", "Milpitas Food Pantry", "grocery", "1440 S Main St", "Milpitas", "95035", 37.4222, -121.8995, daytime("09:30", "12:30"), "Free groceries for Milpitas residents."),
+  svc("valley-hhcp", "Valley Homeless Healthcare Program", "clinic", "2400 Moorpark Ave", "San José", "95128", 37.3128, -121.9266, daytime("08:00", "17:00"), "Free clinic for people without housing."),
+  svc("gardner-clinic", "Gardner Health Services", "clinic", "160 E Virginia St", "San José", "95112", 37.3262, -121.8788, daytime("08:00", "17:00"), "Sliding-scale medical + dental."),
+  svc("homefirst-dropin", "HomeFirst Day Drop-in Center", "drop_in", "2011 Little Orchard St", "San José", "95125", 37.3076, -121.8676, daytime("08:00", "16:00"), "Showers, mail, phone charging, case help."),
+  svc("sunnyvale-warming", "Sunnyvale Warming Center", "warming", "620 E Maude Ave", "Sunnyvale", "94089", 37.3897, -122.0205, nightly("20:00", "06:00", "23:00"), "Cold-weather overnight warming center."),
 ];
+
+// Compact builder for non-shelter services (food/grocery/shower/clinic/drop-in/warming).
+function svc(
+  id: string,
+  name: string,
+  type: Resource["type"],
+  address: string,
+  city: string,
+  zip: string,
+  lat: number,
+  lng: number,
+  hours: Hours,
+  notes: string,
+): Resource {
+  return {
+    id, name, type, address, city, zip, lat, lng,
+    phone: "+14085550000",
+    hours,
+    servesFamilies: true,
+    familyCapacity: 0,
+    genderPolicy: "any",
+    adaAccessible: true,
+    allowsPets: false,
+    sobrietyRequired: false,
+    totalBeds: 0,
+    openBeds: 0,
+    lastVerifiedAt: null,
+    verifyMethod: "seed",
+    notes,
+  };
+}

@@ -53,6 +53,7 @@ export async function GET() {
       lastMessage: c.lastMessage,
       status: c.status,
       topMatchId: c.topMatchId,
+      routePolyline: c.routePolyline ?? null,
       updatedAt: c.updatedAt,
       coords,
     };

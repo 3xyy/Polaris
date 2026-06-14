@@ -20,6 +20,40 @@ export interface MapPerson {
   status: string;
   topMatchId: string | null;
   coords: { lat: number; lng: number } | null;
+  routePolyline?: string | null;
+}
+
+// Decode a Google/Mapbox polyline (precision 5) into [lat,lng] points.
+function decodePolyline(str: string): [number, number][] {
+  const points: [number, number][] = [];
+  let index = 0, lat = 0, lng = 0;
+  while (index < str.length) {
+    let b: number, shift = 0, result = 0;
+    do { b = str.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lat += result & 1 ? ~(result >> 1) : result >> 1;
+    shift = 0; result = 0;
+    do { b = str.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lng += result & 1 ? ~(result >> 1) : result >> 1;
+    points.push([lat / 1e5, lng / 1e5]);
+  }
+  return points;
+}
+
+function serviceColor(type: string): string {
+  if (type === "food" || type === "grocery") return "#F59E0B";
+  if (type === "shower" || type === "drop_in") return "#0EA5E9";
+  if (type === "clinic") return "#8B5CF6";
+  if (type === "warming") return "#EF4444";
+  return "#6B7280";
+}
+function serviceDot(color: string) {
+  return L.divIcon({
+    className: "",
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+    tooltipAnchor: [0, -10],
+    html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25)"></div>`,
+  });
 }
 export type Selected =
   | { kind: "resource"; id: string }
@@ -104,19 +138,35 @@ export function LiveMap({
       <ZoomControl position="bottomright" />
       {onSelect && <BackgroundClick onClear={() => onSelect(null)} />}
 
-      {/* in-progress routes */}
+      {/* in-progress routes — real street geometry when we have it, else a direct line */}
       {located.map((p) => {
         if (p.status !== "routed" || !p.topMatchId) return null;
         const r = shelters.find((s) => s.id === p.topMatchId);
         if (!r) return null;
+        const positions: [number, number][] = p.routePolyline
+          ? decodePolyline(p.routePolyline)
+          : [[p.coords!.lat, p.coords!.lng], [r.lat, r.lng]];
         return (
           <Polyline
             key={`route-${p.id}`}
-            positions={[[p.coords!.lat, p.coords!.lng], [r.lat, r.lng]]}
-            pathOptions={{ color: COLOR.success, weight: 3, lineCap: "round", lineJoin: "round", opacity: 0.85 }}
+            positions={positions}
+            pathOptions={{ color: COLOR.route, weight: 4, lineCap: "round", lineJoin: "round", opacity: 0.9 }}
           />
         );
       })}
+
+      {/* non-shelter services (food / grocery / showers / clinics / warming) */}
+      {resources
+        .filter((r) => r.type !== "shelter")
+        .map((r) => (
+          <Marker key={r.id} position={[r.lat, r.lng]} icon={serviceDot(serviceColor(r.type))}>
+            <Tooltip>
+              <strong>{r.name}</strong>
+              <br />
+              {r.type.replace("_", " ")}
+            </Tooltip>
+          </Marker>
+        ))}
 
       {/* shelters */}
       {shelters.map((r) => (

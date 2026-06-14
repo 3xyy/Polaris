@@ -58,6 +58,44 @@ export function askZip(c: Constraints, lang: Lang): string {
   );
 }
 
+export function askLocation(c: Constraints, lang: Lang): string {
+  const needs: string[] = [];
+  if (c.urgency === "tonight") needs.push(lang === "es" ? "un lugar para esta noche" : "a place for tonight");
+  if (c.family) needs.push(lang === "es" ? "para tu familia" : "for your family");
+  const lead =
+    needs.length > 0
+      ? lang === "es"
+        ? `Entendido — buscando ${needs.join(" ")}. `
+        : `Got it — looking for ${needs.join(" ")}. `
+      : lang === "es"
+        ? "Estoy aquí para ayudar. "
+        : "I'm here to help. ";
+  return (
+    lead +
+    (lang === "es"
+      ? "Comparte tu ubicación 📍 (toca 📎 → Ubicación) o escribe tu dirección o cruce de calles más cercano."
+      : "Share your location 📍 (tap 📎 → Location) or type your address or nearest cross-street.")
+  );
+}
+
+export function helpReply(lang: Lang): string {
+  return lang === "es"
+    ? "Polaris encuentra refugio verificado, comida, duchas y más — por mensaje, desde cualquier teléfono.\n• Dime qué necesitas (ej. “cama esta noche, 2 niños”)\n• Comparte tu ubicación 📍 para direcciones\n• COMIDA — comida gratis cerca\n• DUCHA — duchas cerca\n• LLAMAR — te conecto con el lugar\n• 988 — apoyo en crisis 24/7\n• ALTO — cancelar"
+    : "Polaris finds verified shelter, food, showers & more — by text, from any phone.\n• Tell me what you need (e.g. “bed tonight, 2 kids”)\n• Share your location 📍 for directions\n• FOOD — free food near you\n• SHOWER — showers near you\n• CALL — I'll connect you to the place\n• 988 — 24/7 crisis support\n• STOP — opt out";
+}
+
+export function planExtras(items: { icon: string; name: string; distanceMi: number }[], lang: Lang): string {
+  if (!items.length) return "";
+  const head = lang === "es" ? "\n\nTambién cerca de ti:" : "\n\nAlso near you:";
+  return head + "\n" + items.map((it) => `${it.icon} ${it.name} (${it.distanceMi} mi)`).join("\n");
+}
+
+export function nearbyList(label: string, items: { name: string; distanceMi: number; address: string }[], lang: Lang): string {
+  if (!items.length) return lang === "es" ? `No encontré ${label} cerca ahora mismo.` : `I couldn't find ${label} nearby right now.`;
+  const head = lang === "es" ? `${label} cerca de ti:` : `${label} near you:`;
+  return head + "\n" + items.map((it) => `• ${it.name} — ${it.distanceMi} mi (${it.address})`).join("\n");
+}
+
 export function verifying(resourceName: string, lang: Lang): string {
   return lang === "es"
     ? `Revisando ${resourceName} ahora mismo — confirmo que de verdad tienen espacio antes de mandarte. Un momento…`
@@ -144,8 +182,8 @@ export function directionsReply(resourceName: string, dir: Directions, lang: Lan
       ? `🗺️ Direcciones a ${resourceName} (~${dir.durationMin} min, ${dir.distanceMi} mi):`
       : `🗺️ Directions to ${resourceName} (~${dir.durationMin} min, ${dir.distanceMi} mi):`;
   const steps = dir.steps
-    .slice(0, 6)
-    .map((s, i) => `${i + 1}. ${s.instruction}${s.distanceFt > 250 ? ` (${fmtDist(s.distanceFt)})` : ""}`)
+    .slice(0, 7)
+    .map((s, i) => `${i + 1}. ${s.instruction}${s.distanceFt > 0 ? ` — ${fmtDist(s.distanceFt)}` : ""}`)
     .join("\n");
   return `${head}\n${steps}`;
 }

@@ -2,7 +2,7 @@
 // Polaris is a verification layer over housing resources: it ranks options for a
 // person in need, then confirms availability by phone BEFORE sending them across town.
 
-export type ResourceType = "shelter" | "food" | "shower" | "clinic" | "drop_in";
+export type ResourceType = "shelter" | "food" | "grocery" | "shower" | "clinic" | "drop_in" | "warming";
 
 /**
  * Who a resource can serve. Matching is strict on these — sending a family to a
@@ -120,7 +120,8 @@ export interface Conversation {
   lastMessage: string;
   lastReplies: string[];
   topMatchId: string | null;
-  status: "intake" | "matching" | "verifying" | "routed" | "crisis";
+  routePolyline?: string; // encoded route geometry (origin->shelter) for the dashboard map
+  status: "intake" | "locating" | "matching" | "verifying" | "routed" | "crisis";
   createdAt: number;
   updatedAt: number;
 }

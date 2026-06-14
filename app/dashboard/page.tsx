@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Donut } from "@/components/Donut";
 
 // ---- shapes returned by /api/dashboard ----
 interface Constraints {
@@ -65,6 +66,7 @@ function ago(ts: number | null, now: number): string {
 export default function Dashboard() {
   const [data, setData] = useState<Data | null>(null);
   const [err, setErr] = useState(false);
+  const [clock, setClock] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -82,6 +84,14 @@ export default function Dashboard() {
     return () => clearInterval(t);
   }, [load]);
 
+  useEffect(() => {
+    const t = setInterval(
+      () => setClock(new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })),
+      1000,
+    );
+    return () => clearInterval(t);
+  }, []);
+
   const reset = async () => {
     await fetch("/api/reset", { method: "POST" });
     load();
@@ -89,21 +99,24 @@ export default function Dashboard() {
 
   const now = data?.now ?? Date.now();
   const trust = computeTrust(data);
+  const readiness = computeReadiness(data?.resources ?? []);
 
   return (
     <div className="mx-auto w-full max-w-7xl px-5 py-8">
       {/* header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">Live Sky</h1>
-          <p className="mt-1 text-sm text-muted">
-            Real-time housing navigation — every routed bed is phone-verified first.
-          </p>
-        </div>
         <div className="flex items-center gap-3">
+          <span className="grid h-11 w-11 place-items-center rounded-2xl border border-edge bg-white/[0.03] text-north text-lg">★</span>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-ink">Live Sky</h1>
+            <p className="text-sm text-muted">Real-time housing navigation — every routed bed is phone-verified first.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <span className="mono hidden text-[12px] text-faint sm:block">{clock}</span>
           <span className="pill text-confirmed">
             <span className={`h-1.5 w-1.5 rounded-full ${err ? "bg-full" : "bg-confirmed animate-twinkle"}`} />
-            {err ? "reconnecting" : "live · 2s"}
+            {err ? "reconnecting" : "live"}
           </span>
           <button
             onClick={reset}
@@ -117,29 +130,36 @@ export default function Dashboard() {
       {/* KPI row */}
       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <TrustTile trust={trust} />
-        <Kpi label="Ghost beds avoided" value={data?.impact.ghostBedsAvoided ?? 0} tone="full" hint="full / no-answer caught before routing" />
-        <Kpi label="Verified routes" value={data?.impact.verifiedRoutes ?? 0} tone="confirmed" hint="confirmed beds sent to people" />
-        <Kpi label="Provider updates" value={data?.impact.providerUpdates ?? 0} tone="sky" hint="beacons from shelters" />
+        <Kpi label="Ghost beds avoided" value={data?.impact.ghostBedsAvoided ?? 0} tone="full" hint="full / no-answer caught before routing" icon="shield" />
+        <Kpi label="Verified routes" value={data?.impact.verifiedRoutes ?? 0} tone="confirmed" hint="confirmed beds sent to people" icon="route" />
+        <Kpi label="Provider updates" value={data?.impact.providerUpdates ?? 0} tone="sky" hint="live beacons from shelters" icon="signal" />
       </div>
 
       {/* main grid */}
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Section title="Incoming Signals" subtitle="people reaching out">
-          <IncomingSignals conversations={data?.conversations ?? []} now={now} />
-        </Section>
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-4">
+          <Section title="Incoming Signals" subtitle="people reaching out">
+            <IncomingSignals conversations={data?.conversations ?? []} now={now} />
+          </Section>
+        </div>
 
-        <div className="flex flex-col gap-4">
-          <Section title="Need Compass" subtitle="latest extracted needs">
-            <NeedCompass conversation={data?.conversations?.[0]} />
+        <div className="flex flex-col gap-4 lg:col-span-4">
+          <Section title="Resource Readiness" subtitle="confidence by freshness">
+            <Readiness readiness={readiness} />
           </Section>
           <Section title="Ghost Bed Radar" subtitle="live verification calls">
             <GhostRadar verifications={data?.verifications ?? []} now={now} />
           </Section>
         </div>
 
-        <Section title="Resource Constellation" subtitle="confidence by freshness">
-          <Constellation resources={data?.resources ?? []} now={now} />
-        </Section>
+        <div className="flex flex-col gap-4 lg:col-span-4">
+          <Section title="Need Compass" subtitle="latest extracted needs">
+            <NeedCompass conversation={data?.conversations?.[0]} />
+          </Section>
+          <Section title="Resource Constellation" subtitle="live shelter status">
+            <Constellation resources={data?.resources ?? []} now={now} />
+          </Section>
+        </div>
       </div>
     </div>
   );
@@ -157,15 +177,16 @@ function computeTrust(data: Data | null): { score: number; label: string } {
   return { score: avg, label: "last-known data — verify to raise trust" };
 }
 
+function bandColor(score: number): string {
+  return score >= 85 ? "var(--color-confirmed)" : score >= 50 ? "var(--color-stale)" : "var(--color-full)";
+}
+
 function TrustTile({ trust }: { trust: { score: number; label: string } }) {
-  const color = trust.score >= 85 ? "var(--color-confirmed)" : trust.score >= 50 ? "var(--color-stale)" : "var(--color-full)";
+  const color = bandColor(trust.score);
   return (
-    <div className="panel panel-glow flex items-center gap-4 p-4">
-      <div
-        className="relative grid h-16 w-16 shrink-0 place-items-center rounded-full"
-        style={{ background: `conic-gradient(${color} ${trust.score * 3.6}deg, var(--color-edge) 0deg)` }}
-      >
-        <div className="grid h-12 w-12 place-items-center rounded-full bg-panel">
+    <div className="panel card-lift flex items-center gap-4 p-4">
+      <div className="relative grid h-16 w-16 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(${color} ${trust.score * 3.6}deg, var(--color-edge) 0deg)` }}>
+        <div className="grid h-12 w-12 place-items-center rounded-full bg-deep">
           <span className="text-sm font-bold text-ink">{trust.score}</span>
         </div>
       </div>
@@ -177,13 +198,59 @@ function TrustTile({ trust }: { trust: { score: number; label: string } }) {
   );
 }
 
-function Kpi({ label, value, tone, hint }: { label: string; value: number; tone: "full" | "confirmed" | "sky"; hint: string }) {
+function Kpi({ label, value, tone, hint, icon }: { label: string; value: number; tone: "full" | "confirmed" | "sky"; hint: string; icon: IconName }) {
   const color = tone === "full" ? "text-full" : tone === "confirmed" ? "text-confirmed" : "text-sky";
+  const bg = tone === "full" ? "bg-full/10" : tone === "confirmed" ? "bg-confirmed/10" : "bg-sky/10";
   return (
-    <div className="panel p-4">
-      <div className="mono text-[11px] uppercase tracking-wider text-muted">{label}</div>
-      <div className={`mt-1 text-3xl font-bold ${color}`}>{value}</div>
+    <div className="panel card-lift p-4">
+      <div className="flex items-center justify-between">
+        <div className="mono text-[11px] uppercase tracking-wider text-muted">{label}</div>
+        <span className={`grid h-7 w-7 place-items-center rounded-lg ${bg} ${color}`}>
+          <Icon name={icon} />
+        </span>
+      </div>
+      <div className={`mt-2 text-3xl font-bold ${color}`}>{value}</div>
       <div className="mt-1 text-[11px] text-faint">{hint}</div>
+    </div>
+  );
+}
+
+// ---------------- Resource Readiness donut ----------------
+function computeReadiness(resources: ResourceView[]) {
+  const b = { verified: 0, aging: 0, stale: 0 };
+  for (const r of resources) {
+    if (r.confidence >= 85) b.verified++;
+    else if (r.confidence >= 50) b.aging++;
+    else b.stale++;
+  }
+  const total = resources.length || 1;
+  return { ...b, total: resources.length, pct: Math.round((b.verified / total) * 100) };
+}
+
+function Readiness({ readiness }: { readiness: ReturnType<typeof computeReadiness> }) {
+  const segs = [
+    { label: "Verified", value: readiness.verified, color: "var(--color-confirmed)" },
+    { label: "Aging", value: readiness.aging, color: "var(--color-stale)" },
+    { label: "Stale", value: readiness.stale, color: "var(--color-faint)" },
+  ];
+  return (
+    <div className="flex items-center gap-5">
+      <Donut segments={segs} centerTop={`${readiness.pct}%`} centerBottom="live" />
+      <div className="flex flex-col gap-2.5">
+        <LegendRow color="var(--color-confirmed)" label="Verified" value={readiness.verified} />
+        <LegendRow color="var(--color-stale)" label="Aging" value={readiness.aging} />
+        <LegendRow color="var(--color-faint)" label="Needs verify" value={readiness.stale} />
+        <div className="mono mt-1 text-[10px] text-faint">{readiness.total} shelters tracked</div>
+      </div>
+    </div>
+  );
+}
+function LegendRow({ color, label, value }: { color: string; label: string; value: number }) {
+  return (
+    <div className="flex items-center gap-2 text-[13px]">
+      <span className="h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
+      <span className="text-muted">{label}</span>
+      <span className="ml-auto font-semibold text-ink">{value}</span>
     </div>
   );
 }
@@ -205,14 +272,17 @@ function Section({ title, subtitle, children }: { title: string; subtitle: strin
 function IncomingSignals({ conversations, now }: { conversations: Conversation[]; now: number }) {
   if (conversations.length === 0) return <Empty hint="Text the line (or POST /api/sms) to light up the board." />;
   return (
-    <div className="flex max-h-[520px] flex-col gap-2.5 overflow-y-auto pr-1">
+    <div className="flex max-h-[560px] flex-col gap-2.5 overflow-y-auto pr-1">
       {conversations.map((c) => (
-        <div key={c.id} className="animate-rise rounded-xl border border-edge bg-white/[0.02] p-3">
-          <div className="flex items-center justify-between">
+        <div key={c.id} className="card-lift animate-rise rounded-xl border border-edge bg-white/[0.02] p-3">
+          <div className="flex items-center gap-2.5">
+            <Avatar name={c.pseudonym} />
             <span className="text-sm font-semibold text-ink">{c.pseudonym}</span>
-            <StatusDot status={c.status} />
+            <span className="ml-auto">
+              <StatusDot status={c.status} />
+            </span>
           </div>
-          <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-muted">“{c.lastMessage}”</p>
+          <p className="mt-2 line-clamp-2 text-[13px] leading-snug text-muted">“{c.lastMessage}”</p>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {constraintChips(c.constraints).map((chip) => (
               <span key={chip} className="rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] text-muted">{chip}</span>
@@ -223,6 +293,18 @@ function IncomingSignals({ conversations, now }: { conversations: Conversation[]
         </div>
       ))}
     </div>
+  );
+}
+
+function Avatar({ name }: { name: string }) {
+  const palette = ["var(--color-aurora)", "var(--color-sky)", "var(--color-north)", "var(--color-violet)", "var(--color-confirmed)"];
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 997;
+  const color = palette[h % palette.length];
+  return (
+    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={{ background: `${color}22`, color }}>
+      {name[0]}
+    </span>
   );
 }
 
@@ -255,15 +337,12 @@ function NeedCompass({ conversation }: { conversation?: Conversation }) {
 function GhostRadar({ verifications, now }: { verifications: Verification[]; now: number }) {
   if (verifications.length === 0) return <Empty hint="No verification calls yet." />;
   return (
-    <div className="flex max-h-[260px] flex-col gap-2 overflow-y-auto pr-1">
+    <div className="flex max-h-[240px] flex-col gap-2 overflow-y-auto pr-1">
       {verifications.map((v) => {
         const s = statusMeta(v.status);
         return (
           <div key={v.id} className="animate-rise flex items-center gap-3 rounded-xl border border-edge bg-white/[0.02] p-2.5">
-            <span
-              className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm ${v.status === "calling" ? "animate-pulse-ring" : ""}`}
-              style={{ background: `${s.color}22`, color: s.color }}
-            >
+            <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm ${v.status === "calling" ? "animate-pulse-ring" : ""}`} style={{ background: `${s.color}22`, color: s.color }}>
               {s.icon}
             </span>
             <div className="min-w-0 flex-1">
@@ -285,17 +364,17 @@ function Constellation({ resources, now }: { resources: ResourceView[]; now: num
     return b.confidence - a.confidence;
   });
   return (
-    <div className="flex max-h-[520px] flex-col gap-2.5 overflow-y-auto pr-1">
+    <div className="flex max-h-[420px] flex-col gap-2.5 overflow-y-auto pr-1">
       {sorted.map((r) => {
-        const c = r.confidence >= 85 ? "var(--color-confirmed)" : r.confidence >= 50 ? "var(--color-stale)" : "var(--color-faint)";
+        const c = bandColor(r.confidence);
         return (
-          <div key={r.id} className="rounded-xl border border-edge bg-white/[0.02] p-3">
+          <div key={r.id} className="card-lift rounded-xl border border-edge bg-white/[0.02] p-3">
             <div className="flex items-center justify-between gap-2">
               <span className="truncate text-[13px] font-semibold text-ink">{r.name}</span>
               <span className="mono shrink-0 text-[11px]" style={{ color: c }}>{r.confidence}%</span>
             </div>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-edge">
-              <div className="h-full rounded-full" style={{ width: `${r.confidence}%`, background: c }} />
+              <div className="h-full rounded-full" style={{ width: `${r.confidence}%`, background: c, transition: "width 0.5s ease" }} />
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
               <span className="text-muted">{r.type === "shelter" ? `${r.openBeds}/${r.totalBeds} beds` : r.type}</span>
@@ -303,10 +382,7 @@ function Constellation({ resources, now }: { resources: ResourceView[]; now: num
               {r.adaAccessible && <Tag>ADA</Tag>}
               {r.allowsPets && <Tag>pets</Tag>}
               {r.genderPolicy !== "any" && <Tag>{r.genderPolicy.replace("_", " ")}</Tag>}
-              <span className="mono ml-auto text-faint">
-                {r.verifyMethod === "phone" ? "☎ " : ""}
-                {ago(r.lastVerifiedAt, now)}
-              </span>
+              <span className="mono ml-auto text-faint">{r.verifyMethod === "phone" ? "☎ " : ""}{ago(r.lastVerifiedAt, now)}</span>
             </div>
           </div>
         );
@@ -358,4 +434,13 @@ function constraintChips(c: Constraints): string[] {
   if (c.noCar) chips.push("no car");
   if (c.zip) chips.push(c.zip);
   return chips;
+}
+
+// ---------------- icons ----------------
+type IconName = "shield" | "route" | "signal";
+function Icon({ name }: { name: IconName }) {
+  const common = { width: 15, height: 15, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  if (name === "shield") return <svg {...common}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /><path d="m9 12 2 2 4-4" /></svg>;
+  if (name === "route") return <svg {...common}><circle cx="6" cy="19" r="3" /><circle cx="18" cy="5" r="3" /><path d="M9 19h6a4 4 0 0 0 4-4V9" /></svg>;
+  return <svg {...common}><path d="M4.9 19.1A10 10 0 0 1 4.9 4.9" /><path d="M7.8 16.2a6 6 0 0 1 0-8.4" /><circle cx="12" cy="12" r="2" /><path d="M16.2 7.8a6 6 0 0 1 0 8.4" /><path d="M19.1 4.9a10 10 0 0 1 0 14.2" /></svg>;
 }

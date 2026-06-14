@@ -1,61 +1,35 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Donut } from "@/components/Donut";
+import type { Selected } from "@/components/LiveMap";
 
 // Leaflet touches `window`, so load the map client-only.
 const LiveMap = dynamic(() => import("@/components/LiveMap").then((m) => m.LiveMap), {
   ssr: false,
-  loading: () => <div className="grid h-full place-items-center text-[13px] text-faint">Loading map…</div>,
+  loading: () => <div className="grid h-full place-items-center bg-[#F6F7F8] text-[13px] text-[#9CA3AF]">Loading map…</div>,
 });
 
 // ---- shapes returned by /api/dashboard ----
 interface Constraints {
-  zip?: string;
-  urgency?: string;
-  family?: boolean;
-  childrenCount?: number;
-  gender?: string;
-  ada?: boolean;
-  pets?: boolean;
-  noCar?: boolean;
+  zip?: string; urgency?: string; family?: boolean; childrenCount?: number;
+  gender?: string; ada?: boolean; pets?: boolean; noCar?: boolean;
 }
 interface Conversation {
-  id: string;
-  pseudonym: string;
-  lang: string;
-  constraints: Constraints;
-  lastMessage: string;
-  status: string;
-  topMatchId: string | null;
-  coords: { lat: number; lng: number } | null;
-  updatedAt: number;
+  id: string; pseudonym: string; lang: string; constraints: Constraints;
+  lastMessage: string; status: string; topMatchId: string | null;
+  coords: { lat: number; lng: number } | null; updatedAt: number;
 }
 interface Verification {
-  id: string;
-  resourceName: string;
-  status: string;
-  bedsNeeded: number;
-  requestedAt: number;
-  respondedAt: number | null;
+  id: string; resourceName: string; status: string; bedsNeeded: number;
+  requestedAt: number; respondedAt: number | null;
 }
 interface ResourceView {
-  id: string;
-  name: string;
-  type: string;
-  city: string;
-  lat: number;
-  lng: number;
-  openBeds: number;
-  totalBeds: number;
-  genderPolicy: string;
-  adaAccessible: boolean;
-  allowsPets: boolean;
-  servesFamilies: boolean;
-  verifyMethod: string;
-  lastVerifiedAt: number | null;
-  confidence: number;
+  id: string; name: string; type: string; city: string; lat: number; lng: number;
+  openBeds: number; totalBeds: number; genderPolicy: string; adaAccessible: boolean;
+  allowsPets: boolean; servesFamilies: boolean; verifyMethod: string;
+  lastVerifiedAt: number | null; confidence: number;
 }
 interface Data {
   now: number;
@@ -65,6 +39,8 @@ interface Data {
   resources: ResourceView[];
 }
 
+const ACCENT = "#2563EB", SUCCESS = "#10B981", WARNING = "#F59E0B", ERROR = "#EF4444";
+
 function ago(ts: number | null, now: number): string {
   if (!ts) return "never";
   const s = Math.max(0, Math.round((now - ts) / 1000));
@@ -73,11 +49,15 @@ function ago(ts: number | null, now: number): string {
   if (m < 60) return `${m}m ago`;
   return `${Math.round(m / 60)}h ago`;
 }
+function bandColor(score: number): string {
+  return score >= 85 ? SUCCESS : score >= 50 ? WARNING : ERROR;
+}
 
 export default function Dashboard() {
   const [data, setData] = useState<Data | null>(null);
   const [err, setErr] = useState(false);
   const [clock, setClock] = useState("");
+  const [selected, setSelected] = useState<Selected>(null);
 
   const load = useCallback(async () => {
     try {
@@ -94,249 +74,224 @@ export default function Dashboard() {
     const t = setInterval(load, 2000);
     return () => clearInterval(t);
   }, [load]);
-
   useEffect(() => {
-    const t = setInterval(
-      () => setClock(new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })),
-      1000,
-    );
+    const t = setInterval(() => setClock(new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })), 1000);
     return () => clearInterval(t);
   }, []);
 
   const reset = async () => {
     await fetch("/api/reset", { method: "POST" });
+    setSelected(null);
     load();
   };
 
   const now = data?.now ?? Date.now();
+  const resources = data?.resources ?? [];
+  const conversations = data?.conversations ?? [];
   const trust = computeTrust(data);
-  const readiness = computeReadiness(data?.resources ?? []);
+  const bands = readinessBands(resources);
+  const verifiedBeds = resources.filter((r) => r.type === "shelter" && r.confidence >= 85).reduce((s, r) => s + r.openBeds, 0);
+
+  const selectedResource = selected?.kind === "resource" ? resources.find((r) => r.id === selected.id) : undefined;
+  const selectedPerson = selected?.kind === "person" ? conversations.find((c) => c.id === selected.id) : undefined;
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-5 py-8">
-      {/* header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-2xl border border-edge bg-white/[0.03] text-north text-lg">★</span>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-ink">Live Sky</h1>
-            <p className="text-sm text-muted">Real-time housing navigation — every routed bed is phone-verified first.</p>
-          </div>
+    <div className="fixed inset-0 bg-[#F6F7F8] text-[#111827]" style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}>
+      {/* ---------- top bar ---------- */}
+      <header className="absolute inset-x-0 top-0 z-[1100] flex h-14 items-center justify-between border-b border-black/[0.07] bg-white/90 px-5 backdrop-blur-xl">
+        <div className="flex items-center gap-8">
+          <Link href="/" className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
+            <span className="text-[#2563EB]">✦</span> POLARIS
+          </Link>
+          <nav className="hidden items-center gap-1 text-[13px] md:flex">
+            <Tab active>Live Operations</Tab>
+            <Link href="/provider"><Tab>Providers</Tab></Link>
+            <Tab>Verification Queue</Tab>
+            <Tab>Analytics</Tab>
+          </nav>
         </div>
-        <div className="flex items-center gap-2.5">
-          <span className="mono hidden text-[12px] text-faint sm:block">{clock}</span>
-          <span className="pill text-confirmed">
-            <span className={`h-1.5 w-1.5 rounded-full ${err ? "bg-full" : "bg-confirmed animate-twinkle"}`} />
-            {err ? "reconnecting" : "live"}
+        <div className="flex items-center gap-3">
+          <span className="mono hidden text-[12px] text-[#6B7280] sm:block">{clock}</span>
+          <span className="flex items-center gap-1.5 rounded-full border border-black/[0.08] px-2.5 py-1 text-[12px] font-medium text-[#111827]">
+            <span className={`h-1.5 w-1.5 rounded-full ${err ? "bg-[#EF4444]" : "bg-[#10B981]"}`} style={{ animation: err ? undefined : "twinkle 2.4s ease-in-out infinite" }} />
+            {err ? "Reconnecting" : "Live"}
           </span>
-          <button
-            onClick={reset}
-            className="rounded-full border border-edge bg-white/5 px-3.5 py-1.5 text-[13px] text-muted transition-colors hover:bg-white/10 hover:text-ink"
-          >
+          <button onClick={reset} className="rounded-full border border-black/[0.08] bg-white px-3.5 py-1.5 text-[12px] font-medium text-[#374151] transition-colors hover:bg-[#F3F4F6]">
             Reset demo
           </button>
         </div>
+      </header>
+
+      {/* ---------- full-screen map ---------- */}
+      <div className="absolute inset-0 top-14">
+        <LiveMap resources={resources} people={conversations} onSelect={setSelected} />
       </div>
 
-      {/* KPI row */}
-      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <TrustTile trust={trust} />
-        <Kpi label="Ghost beds avoided" value={data?.impact.ghostBedsAvoided ?? 0} tone="full" hint="full / no-answer caught before routing" icon="shield" />
-        <Kpi label="Verified routes" value={data?.impact.verifiedRoutes ?? 0} tone="confirmed" hint="confirmed beds sent to people" icon="route" />
-        <Kpi label="Provider updates" value={data?.impact.providerUpdates ?? 0} tone="sky" hint="live beacons from shelters" icon="signal" />
+      {/* ---------- top-center legend ---------- */}
+      <div className="glass absolute left-1/2 top-[4.5rem] z-[1000] flex -translate-x-1/2 items-center gap-3 px-3.5 py-2 text-[12px] font-medium">
+        <LegendDot color={SUCCESS} label="People" />
+        <LegendDot color={ACCENT} label="Shelters" />
+        <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded" style={{ background: SUCCESS }} /> Routes</span>
       </div>
 
-      {/* live map */}
-      <div className="panel mt-4 p-4">
-        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold tracking-wide text-ink">Live Sky Map</h2>
-          <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted">
-            <LegendDot color="#35d6a4" label="open / verified" />
-            <LegendDot color="#fbbf24" label="aging" />
-            <LegendDot color="#f8716f" label="full" />
-            <LegendDot color="#38bdf8" label="person" ring />
-            <span className="mono text-faint">— route in progress</span>
+      {/* ---------- LEFT column ---------- */}
+      <div className="absolute bottom-4 left-4 top-[4.5rem] z-[1000] flex w-[330px] flex-col gap-3 overflow-y-auto pb-1">
+        <Panel>
+          <SectionTitle>Operations Summary</SectionTitle>
+          <div className="mt-3">
+            <StatBar label="Trust Score" value={`${trust.score}`} sub={trust.label} pct={trust.score} color={bandColor(trust.score)} />
           </div>
-        </div>
-        <div className="h-[340px] overflow-hidden rounded-xl border border-edge">
-          <LiveMap resources={data?.resources ?? []} people={data?.conversations ?? []} />
-        </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <MiniStat label="Active" value={conversations.length} />
+            <MiniStat label="Verified beds" value={verifiedBeds} color={SUCCESS} />
+            <MiniStat label="Updates" value={data?.impact.providerUpdates ?? 0} color={ACCENT} />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <MiniStat label="Ghost beds avoided" value={data?.impact.ghostBedsAvoided ?? 0} color={ERROR} />
+            <MiniStat label="Verified routes" value={data?.impact.verifiedRoutes ?? 0} color={SUCCESS} />
+          </div>
+        </Panel>
+
+        <Panel className="min-h-0 flex-1">
+          <SectionTitle>Incoming Signals</SectionTitle>
+          <IncomingSignals conversations={conversations} now={now} onSelect={setSelected} />
+        </Panel>
       </div>
 
-      {/* main grid */}
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-4">
-          <Section title="Incoming Signals" subtitle="people reaching out">
-            <IncomingSignals conversations={data?.conversations ?? []} now={now} />
-          </Section>
-        </div>
+      {/* ---------- RIGHT column ---------- */}
+      <div className="absolute bottom-4 right-4 top-[4.5rem] z-[1000] flex w-[380px] flex-col gap-3 overflow-y-auto pb-1">
+        <Panel>
+          <SectionTitle>Resource Readiness</SectionTitle>
+          <div className="mt-3 space-y-2">
+            <ReadinessBar label="Verified" value={bands.verified} total={bands.total} color={SUCCESS} />
+            <ReadinessBar label="Aging" value={bands.aging} total={bands.total} color={WARNING} />
+            <ReadinessBar label="Needs verify" value={bands.stale} total={bands.total} color="#9CA3AF" />
+          </div>
+          <div className="mono mt-2 text-[10px] text-[#9CA3AF]">{bands.total} shelters tracked</div>
+        </Panel>
 
-        <div className="flex flex-col gap-4 lg:col-span-4">
-          <Section title="Resource Readiness" subtitle="confidence by freshness">
-            <Readiness readiness={readiness} />
-          </Section>
-          <Section title="Ghost Bed Radar" subtitle="live verification calls">
-            <GhostRadar verifications={data?.verifications ?? []} now={now} />
-          </Section>
-        </div>
+        <Panel>
+          <SectionTitle>Need Compass</SectionTitle>
+          <NeedCompass conversation={conversations[0]} />
+        </Panel>
 
-        <div className="flex flex-col gap-4 lg:col-span-4">
-          <Section title="Need Compass" subtitle="latest extracted needs">
-            <NeedCompass conversation={data?.conversations?.[0]} />
-          </Section>
-          <Section title="Resource Constellation" subtitle="live shelter status">
-            <Constellation resources={data?.resources ?? []} now={now} />
-          </Section>
-        </div>
+        <Panel>
+          <SectionTitle>Ghost Bed Radar</SectionTitle>
+          <GhostRadar verifications={data?.verifications ?? []} now={now} />
+        </Panel>
+
+        <Panel className="min-h-0 flex-1">
+          <SectionTitle>Shelter Directory</SectionTitle>
+          <Directory resources={resources} now={now} onSelect={setSelected} />
+        </Panel>
       </div>
+
+      {/* ---------- context card ---------- */}
+      {(selectedResource || selectedPerson) && (
+        <div className="glass absolute bottom-5 left-1/2 z-[1050] w-[360px] -translate-x-1/2 p-4">
+          {selectedResource && <ResourceCard r={selectedResource} now={now} onClose={() => setSelected(null)} />}
+          {selectedPerson && <PersonCard c={selectedPerson} resources={resources} onClose={() => setSelected(null)} />}
+        </div>
+      )}
     </div>
   );
 }
 
-// ---------------- Trust ----------------
-function computeTrust(data: Data | null): { score: number; label: string } {
-  if (!data || data.resources.length === 0) return { score: 0, label: "awaiting first signal" };
-  const lastConfirmed = data.verifications.find((v) => v.status === "confirmed");
-  if (lastConfirmed) {
-    const r = data.resources.find((x) => x.name === lastConfirmed.resourceName);
-    if (r) return { score: r.confidence, label: `${r.name} — confirmed by phone` };
-  }
-  const avg = Math.round(data.resources.reduce((s, r) => s + r.confidence, 0) / data.resources.length);
-  return { score: avg, label: "last-known data — verify to raise trust" };
+// ---------------- primitives ----------------
+function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`glass p-4 ${className}`}>{children}</div>;
 }
-
-function bandColor(score: number): string {
-  return score >= 85 ? "var(--color-confirmed)" : score >= 50 ? "var(--color-stale)" : "var(--color-full)";
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">{children}</h2>;
 }
-
-function TrustTile({ trust }: { trust: { score: number; label: string } }) {
-  const color = bandColor(trust.score);
+function Tab({ children, active }: { children: React.ReactNode; active?: boolean }) {
   return (
-    <div className="panel card-lift flex items-center gap-4 p-4">
-      <div className="relative grid h-16 w-16 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(${color} ${trust.score * 3.6}deg, var(--color-edge) 0deg)` }}>
-        <div className="grid h-12 w-12 place-items-center rounded-full bg-deep">
-          <span className="text-sm font-bold text-ink">{trust.score}</span>
-        </div>
-      </div>
-      <div className="min-w-0">
-        <div className="mono text-[11px] uppercase tracking-wider text-muted">Trust Score</div>
-        <div className="mt-0.5 truncate text-sm text-ink">{trust.label}</div>
-      </div>
+    <span className={`rounded-lg px-3 py-1.5 transition-colors ${active ? "bg-[#111827] text-white" : "text-[#6B7280] hover:bg-black/[0.04] hover:text-[#111827]"}`}>
+      {children}
+    </span>
+  );
+}
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5 text-[#374151]">
+      <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} /> {label}
+    </span>
+  );
+}
+function Bar({ pct, color }: { pct: number; color: string }) {
+  return (
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#E5E7EB]">
+      <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, pct))}%`, background: color, transition: "width .5s ease" }} />
     </div>
   );
 }
-
-function Kpi({ label, value, tone, hint, icon }: { label: string; value: number; tone: "full" | "confirmed" | "sky"; hint: string; icon: IconName }) {
-  const color = tone === "full" ? "text-full" : tone === "confirmed" ? "text-confirmed" : "text-sky";
-  const bg = tone === "full" ? "bg-full/10" : tone === "confirmed" ? "bg-confirmed/10" : "bg-sky/10";
+function StatBar({ label, value, sub, pct, color }: { label: string; value: string; sub: string; pct: number; color: string }) {
   return (
-    <div className="panel card-lift p-4">
-      <div className="flex items-center justify-between">
-        <div className="mono text-[11px] uppercase tracking-wider text-muted">{label}</div>
-        <span className={`grid h-7 w-7 place-items-center rounded-lg ${bg} ${color}`}>
-          <Icon name={icon} />
-        </span>
+    <div>
+      <div className="flex items-baseline justify-between">
+        <span className="text-[12px] text-[#6B7280]">{label}</span>
+        <span className="text-2xl font-bold" style={{ color }}>{value}</span>
       </div>
-      <div className={`mt-2 text-3xl font-bold ${color}`}>{value}</div>
-      <div className="mt-1 text-[11px] text-faint">{hint}</div>
+      <div className="mt-1.5"><Bar pct={pct} color={color} /></div>
+      <div className="mt-1 text-[11px] text-[#9CA3AF]">{sub}</div>
     </div>
   );
 }
-
-// ---------------- Resource Readiness donut ----------------
-function computeReadiness(resources: ResourceView[]) {
-  const b = { verified: 0, aging: 0, stale: 0 };
-  for (const r of resources) {
-    if (r.confidence >= 85) b.verified++;
-    else if (r.confidence >= 50) b.aging++;
-    else b.stale++;
-  }
-  const total = resources.length || 1;
-  return { ...b, total: resources.length, pct: Math.round((b.verified / total) * 100) };
-}
-
-function Readiness({ readiness }: { readiness: ReturnType<typeof computeReadiness> }) {
-  const segs = [
-    { label: "Verified", value: readiness.verified, color: "var(--color-confirmed)" },
-    { label: "Aging", value: readiness.aging, color: "var(--color-stale)" },
-    { label: "Stale", value: readiness.stale, color: "var(--color-faint)" },
-  ];
+function MiniStat({ label, value, color = "#111827" }: { label: string; value: number; color?: string }) {
   return (
-    <div className="flex items-center gap-5">
-      <Donut segments={segs} centerTop={`${readiness.pct}%`} centerBottom="live" />
-      <div className="flex flex-col gap-2.5">
-        <LegendRow color="var(--color-confirmed)" label="Verified" value={readiness.verified} />
-        <LegendRow color="var(--color-stale)" label="Aging" value={readiness.aging} />
-        <LegendRow color="var(--color-faint)" label="Needs verify" value={readiness.stale} />
-        <div className="mono mt-1 text-[10px] text-faint">{readiness.total} shelters tracked</div>
+    <div className="rounded-xl border border-black/[0.06] bg-black/[0.015] px-3 py-2">
+      <div className="text-xl font-bold" style={{ color }}>{value}</div>
+      <div className="mono mt-0.5 text-[9px] uppercase tracking-wide text-[#9CA3AF]">{label}</div>
+    </div>
+  );
+}
+function ReadinessBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between text-[12px]">
+        <span className="text-[#374151]">{label}</span>
+        <span className="font-semibold text-[#111827]">{value}</span>
       </div>
+      <div className="mt-1"><Bar pct={total ? (value / total) * 100 : 0} color={color} /></div>
     </div>
   );
 }
-function LegendRow({ color, label, value }: { color: string; label: string; value: number }) {
-  return (
-    <div className="flex items-center gap-2 text-[13px]">
-      <span className="h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
-      <span className="text-muted">{label}</span>
-      <span className="ml-auto font-semibold text-ink">{value}</span>
-    </div>
-  );
+function Empty({ hint }: { hint: string }) {
+  return <div className="grid min-h-[70px] place-items-center text-center text-[12px] text-[#9CA3AF]">{hint}</div>;
 }
 
-// ---------------- Section shell ----------------
-function Section({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+// ---------------- panels ----------------
+function IncomingSignals({ conversations, now, onSelect }: { conversations: Conversation[]; now: number; onSelect: (s: Selected) => void }) {
+  if (conversations.length === 0) return <Empty hint="Text the line to light up the board." />;
   return (
-    <div className="panel flex min-h-[200px] flex-col p-4">
-      <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold tracking-wide text-ink">{title}</h2>
-        <span className="mono text-[10px] uppercase tracking-wider text-faint">{subtitle}</span>
-      </div>
-      <div className="flex-1">{children}</div>
-    </div>
-  );
-}
-
-// ---------------- Incoming Signals ----------------
-function IncomingSignals({ conversations, now }: { conversations: Conversation[]; now: number }) {
-  if (conversations.length === 0) return <Empty hint="Text the line (or POST /api/sms) to light up the board." />;
-  return (
-    <div className="flex max-h-[560px] flex-col gap-2.5 overflow-y-auto pr-1">
+    <div className="mt-2 flex max-h-full flex-col gap-2 overflow-y-auto">
       {conversations.map((c) => (
-        <div key={c.id} className="card-lift animate-rise rounded-xl border border-edge bg-white/[0.02] p-3">
-          <div className="flex items-center gap-2.5">
+        <button key={c.id} onClick={() => onSelect({ kind: "person", id: c.id })} className="rounded-xl border border-black/[0.06] bg-white/60 p-2.5 text-left transition-colors hover:border-[#2563EB]/40 hover:bg-[#2563EB]/[0.04]">
+          <div className="flex items-center gap-2">
             <Avatar name={c.pseudonym} />
-            <span className="text-sm font-semibold text-ink">{c.pseudonym}</span>
-            <span className="ml-auto">
-              <StatusDot status={c.status} />
-            </span>
+            <span className="text-[13px] font-semibold text-[#111827]">{c.pseudonym}</span>
+            <StatusPill status={c.status} className="ml-auto" />
           </div>
-          <p className="mt-2 line-clamp-2 text-[13px] leading-snug text-muted">“{c.lastMessage}”</p>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {constraintChips(c.constraints).map((chip) => (
-              <span key={chip} className="rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] text-muted">{chip}</span>
+          <p className="mt-1.5 line-clamp-1 text-[12px] text-[#6B7280]">“{c.lastMessage}”</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            {constraintChips(c.constraints).map((ch) => (
+              <span key={ch} className="rounded bg-black/[0.05] px-1.5 py-0.5 text-[10px] text-[#6B7280]">{ch}</span>
             ))}
-            {c.lang === "es" && <span className="rounded-md bg-violet/15 px-1.5 py-0.5 text-[10px] text-violet">ES</span>}
-            <span className="mono ml-auto text-[10px] text-faint">{ago(c.updatedAt, now)}</span>
+            {c.lang === "es" && <span className="rounded bg-[#2563EB]/10 px-1.5 py-0.5 text-[10px] text-[#2563EB]">ES</span>}
+            <span className="mono ml-auto text-[10px] text-[#9CA3AF]">{ago(c.updatedAt, now)}</span>
           </div>
-        </div>
+        </button>
       ))}
     </div>
   );
 }
-
 function Avatar({ name }: { name: string }) {
-  const palette = ["var(--color-aurora)", "var(--color-sky)", "var(--color-north)", "var(--color-violet)", "var(--color-confirmed)"];
+  const palette = [ACCENT, SUCCESS, WARNING, "#8B5CF6", "#0EA5E9"];
   let h = 0;
   for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 997;
   const color = palette[h % palette.length];
-  return (
-    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={{ background: `${color}22`, color }}>
-      {name[0]}
-    </span>
-  );
+  return <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold" style={{ background: `${color}1f`, color }}>{name[0]}</span>;
 }
-
-// ---------------- Need Compass ----------------
 function NeedCompass({ conversation }: { conversation?: Conversation }) {
   if (!conversation) return <Empty hint="No active intake yet." />;
   const c = conversation.constraints;
@@ -350,114 +305,161 @@ function NeedCompass({ conversation }: { conversation?: Conversation }) {
   if (c.zip) cards.push({ k: "Near", v: c.zip });
   if (cards.length === 0) return <Empty hint="Listening for needs…" />;
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="mt-3 grid grid-cols-2 gap-2">
       {cards.map((card) => (
-        <div key={card.k} className="rounded-lg border border-edge bg-white/[0.02] px-3 py-2">
-          <div className="mono text-[10px] uppercase tracking-wider text-faint">{card.k}</div>
-          <div className="mt-0.5 text-sm font-medium capitalize text-ink">{card.v}</div>
+        <div key={card.k} className="rounded-lg border border-black/[0.06] bg-black/[0.015] px-3 py-1.5">
+          <div className="mono text-[10px] uppercase tracking-wide text-[#9CA3AF]">{card.k}</div>
+          <div className="mt-0.5 text-[13px] font-medium capitalize text-[#111827]">{card.v}</div>
         </div>
       ))}
     </div>
   );
 }
-
-// ---------------- Ghost Bed Radar ----------------
 function GhostRadar({ verifications, now }: { verifications: Verification[]; now: number }) {
   if (verifications.length === 0) return <Empty hint="No verification calls yet." />;
   return (
-    <div className="flex max-h-[240px] flex-col gap-2 overflow-y-auto pr-1">
+    <div className="mt-3 flex max-h-[180px] flex-col gap-2 overflow-y-auto">
       {verifications.map((v) => {
-        const s = statusMeta(v.status);
+        const s = vStatus(v.status);
         return (
-          <div key={v.id} className="animate-rise flex items-center gap-3 rounded-xl border border-edge bg-white/[0.02] p-2.5">
-            <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm ${v.status === "calling" ? "animate-pulse-ring" : ""}`} style={{ background: `${s.color}22`, color: s.color }}>
-              {s.icon}
-            </span>
+          <div key={v.id} className="flex items-center gap-2.5 rounded-xl border border-black/[0.06] bg-white/60 p-2">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[13px]" style={{ background: `${s.color}1f`, color: s.color }}>{s.icon}</span>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-medium text-ink">{v.resourceName}</div>
-              <div className="mono text-[10px] text-faint">family of {v.bedsNeeded} · {ago(v.respondedAt ?? v.requestedAt, now)}</div>
+              <div className="truncate text-[12px] font-medium text-[#111827]">{v.resourceName}</div>
+              <div className="mono text-[10px] text-[#9CA3AF]">family of {v.bedsNeeded} · {ago(v.respondedAt ?? v.requestedAt, now)}</div>
             </div>
-            <span className="pill shrink-0" style={{ color: s.color, borderColor: `${s.color}55` }}>{s.label}</span>
+            <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ color: s.color, background: `${s.color}14` }}>{s.label}</span>
           </div>
         );
       })}
     </div>
   );
 }
-
-// ---------------- Resource Constellation ----------------
-function Constellation({ resources, now }: { resources: ResourceView[]; now: number }) {
-  const sorted = [...resources].sort((a, b) => {
-    if (a.type !== b.type) return a.type === "shelter" ? -1 : 1;
-    return b.confidence - a.confidence;
-  });
+function Directory({ resources, now, onSelect }: { resources: ResourceView[]; now: number; onSelect: (s: Selected) => void }) {
+  const shelters = resources.filter((r) => r.type === "shelter").sort((a, b) => b.confidence - a.confidence);
   return (
-    <div className="flex max-h-[420px] flex-col gap-2.5 overflow-y-auto pr-1">
-      {sorted.map((r) => {
+    <div className="mt-2 flex max-h-full flex-col gap-2 overflow-y-auto">
+      {shelters.map((r) => {
         const c = bandColor(r.confidence);
         return (
-          <div key={r.id} className="card-lift rounded-xl border border-edge bg-white/[0.02] p-3">
+          <button key={r.id} onClick={() => onSelect({ kind: "resource", id: r.id })} className="rounded-xl border border-black/[0.06] bg-white/60 p-2.5 text-left transition-colors hover:border-[#2563EB]/40 hover:bg-[#2563EB]/[0.04]">
             <div className="flex items-center justify-between gap-2">
-              <span className="truncate text-[13px] font-semibold text-ink">{r.name}</span>
-              <span className="mono shrink-0 text-[11px]" style={{ color: c }}>{r.confidence}%</span>
+              <span className="truncate text-[13px] font-semibold text-[#111827]">{r.name}</span>
+              <span className="text-[12px] font-semibold" style={{ color: c }}>{r.confidence}%</span>
             </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-edge">
-              <div className="h-full rounded-full" style={{ width: `${r.confidence}%`, background: c, transition: "width 0.5s ease" }} />
+            <div className="mt-1.5"><Bar pct={r.confidence} color={c} /></div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[10px]">
+              <span className="text-[#6B7280]">{r.openBeds}/{r.totalBeds} beds</span>
+              {r.servesFamilies && <Chip>family</Chip>}
+              {r.adaAccessible && <Chip>ADA</Chip>}
+              {r.allowsPets && <Chip>pets</Chip>}
+              <span className="mono ml-auto text-[#9CA3AF]">{r.verifyMethod === "phone" ? "☎ " : ""}{ago(r.lastVerifiedAt, now)}</span>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
-              <span className="text-muted">{r.type === "shelter" ? `${r.openBeds}/${r.totalBeds} beds` : r.type}</span>
-              {r.servesFamilies && <Tag>family</Tag>}
-              {r.adaAccessible && <Tag>ADA</Tag>}
-              {r.allowsPets && <Tag>pets</Tag>}
-              {r.genderPolicy !== "any" && <Tag>{r.genderPolicy.replace("_", " ")}</Tag>}
-              <span className="mono ml-auto text-faint">{r.verifyMethod === "phone" ? "☎ " : ""}{ago(r.lastVerifiedAt, now)}</span>
-            </div>
-          </div>
+          </button>
         );
       })}
     </div>
   );
 }
 
-// ---------------- small bits ----------------
-function Tag({ children }: { children: React.ReactNode }) {
-  return <span className="rounded bg-white/5 px-1.5 py-0.5 text-muted">{children}</span>;
-}
-function LegendDot({ color, label, ring }: { color: string; label: string; ring?: boolean }) {
+// ---------------- context cards ----------------
+function ResourceCard({ r, now, onClose }: { r: ResourceView; now: number; onClose: () => void }) {
+  const c = bandColor(r.confidence);
   return (
-    <span className="flex items-center gap-1.5">
-      <span className="h-2.5 w-2.5 rounded-full" style={{ background: color, boxShadow: ring ? "0 0 0 2px #fff inset" : undefined }} />
-      {label}
-    </span>
+    <div>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-[15px] font-semibold text-[#111827]">{r.name}</div>
+          <div className="text-[12px] text-[#6B7280]">{r.city} · shelter</div>
+        </div>
+        <CloseBtn onClose={onClose} />
+      </div>
+      <div className="mt-3 flex items-baseline gap-2">
+        <span className="text-3xl font-bold text-[#111827]">{r.openBeds}</span>
+        <span className="text-[12px] text-[#6B7280]">of {r.totalBeds} beds open</span>
+      </div>
+      <div className="mt-2"><Bar pct={r.confidence} color={c} /></div>
+      <div className="mt-1.5 text-[12px] text-[#6B7280]">
+        Verified {ago(r.lastVerifiedAt, now)} · {r.confidence}% confidence{r.verifyMethod === "phone" ? " (by phone)" : ""}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {r.servesFamilies && <Chip>Family</Chip>}
+        {r.adaAccessible && <Chip>ADA</Chip>}
+        {r.allowsPets && <Chip>Pets</Chip>}
+        {r.genderPolicy !== "any" && <Chip>{r.genderPolicy.replace("_", " ")}</Chip>}
+      </div>
+    </div>
   );
 }
-function Empty({ hint }: { hint: string }) {
-  return <div className="grid h-full min-h-[120px] place-items-center text-center text-[13px] text-faint">{hint}</div>;
+function PersonCard({ c, resources, onClose }: { c: Conversation; resources: ResourceView[]; onClose: () => void }) {
+  const match = c.topMatchId ? resources.find((r) => r.id === c.topMatchId) : undefined;
+  return (
+    <div>
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-2">
+          <Avatar name={c.pseudonym} />
+          <div>
+            <div className="text-[15px] font-semibold text-[#111827]">{c.pseudonym}</div>
+            <div className="text-[12px] text-[#6B7280]">Anonymous request</div>
+          </div>
+        </div>
+        <CloseBtn onClose={onClose} />
+      </div>
+      <p className="mt-3 rounded-lg bg-black/[0.03] p-2.5 text-[12px] text-[#374151]">“{c.lastMessage}”</p>
+      <div className="mt-2 flex items-center gap-2">
+        <StatusPill status={c.status} />
+        {match && <span className="text-[12px] text-[#6B7280]">→ {match.name}</span>}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {constraintChips(c.constraints).map((ch) => <Chip key={ch}>{ch}</Chip>)}
+      </div>
+    </div>
+  );
 }
-function StatusDot({ status }: { status: string }) {
+function CloseBtn({ onClose }: { onClose: () => void }) {
+  return <button onClick={onClose} className="grid h-6 w-6 place-items-center rounded-full text-[#9CA3AF] transition-colors hover:bg-black/[0.05] hover:text-[#111827]">✕</button>;
+}
+function Chip({ children }: { children: React.ReactNode }) {
+  return <span className="rounded bg-black/[0.05] px-1.5 py-0.5 text-[10px] text-[#6B7280]">{children}</span>;
+}
+function StatusPill({ status, className = "" }: { status: string; className?: string }) {
   const map: Record<string, [string, string]> = {
-    intake: ["var(--color-sky)", "intake"],
-    matching: ["var(--color-stale)", "matching"],
-    verifying: ["var(--color-north)", "verifying"],
-    routed: ["var(--color-confirmed)", "routed"],
-    crisis: ["var(--color-violet)", "crisis → 988"],
+    intake: [ACCENT, "intake"], matching: [WARNING, "matching"], verifying: [WARNING, "verifying"],
+    routed: [SUCCESS, "routed"], crisis: ["#8B5CF6", "crisis → 988"],
   };
-  const [color, label] = map[status] ?? ["var(--color-muted)", status];
-  return (
-    <span className="pill" style={{ color, borderColor: `${color}55` }}>
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
-      {label}
-    </span>
-  );
+  const [color, label] = map[status] ?? ["#6B7280", status];
+  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${className}`} style={{ color, background: `${color}14` }}>{label}</span>;
 }
-function statusMeta(status: string): { color: string; label: string; icon: string } {
+
+// ---------------- helpers ----------------
+function computeTrust(data: Data | null): { score: number; label: string } {
+  if (!data || data.resources.length === 0) return { score: 0, label: "awaiting first signal" };
+  const lastConfirmed = data.verifications.find((v) => v.status === "confirmed");
+  if (lastConfirmed) {
+    const r = data.resources.find((x) => x.name === lastConfirmed.resourceName);
+    if (r) return { score: r.confidence, label: `${r.name} — confirmed by phone` };
+  }
+  const avg = Math.round(data.resources.reduce((s, r) => s + r.confidence, 0) / data.resources.length);
+  return { score: avg, label: "last-known data — verify to raise trust" };
+}
+function readinessBands(resources: ResourceView[]) {
+  const b = { verified: 0, aging: 0, stale: 0, total: 0 };
+  for (const r of resources) {
+    if (r.type !== "shelter") continue;
+    b.total++;
+    if (r.confidence >= 85) b.verified++;
+    else if (r.confidence >= 50) b.aging++;
+    else b.stale++;
+  }
+  return b;
+}
+function vStatus(status: string): { color: string; label: string; icon: string } {
   switch (status) {
-    case "calling": return { color: "var(--color-north)", label: "Calling…", icon: "☎" };
-    case "confirmed": return { color: "var(--color-confirmed)", label: "Confirmed", icon: "✓" };
-    case "full": return { color: "var(--color-full)", label: "Full — avoided", icon: "✕" };
-    case "no_answer": return { color: "var(--color-muted)", label: "No answer", icon: "…" };
-    case "scanning": return { color: "var(--color-sky)", label: "Scanning", icon: "◎" };
-    default: return { color: "var(--color-muted)", label: status, icon: "•" };
+    case "calling": return { color: WARNING, label: "Calling", icon: "☎" };
+    case "confirmed": return { color: SUCCESS, label: "Confirmed", icon: "✓" };
+    case "full": return { color: ERROR, label: "Avoided", icon: "✕" };
+    case "no_answer": return { color: "#6B7280", label: "No answer", icon: "…" };
+    default: return { color: "#6B7280", label: status, icon: "•" };
   }
 }
 function constraintChips(c: Constraints): string[] {
@@ -470,13 +472,4 @@ function constraintChips(c: Constraints): string[] {
   if (c.noCar) chips.push("no car");
   if (c.zip) chips.push(c.zip);
   return chips;
-}
-
-// ---------------- icons ----------------
-type IconName = "shield" | "route" | "signal";
-function Icon({ name }: { name: IconName }) {
-  const common = { width: 15, height: 15, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  if (name === "shield") return <svg {...common}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /><path d="m9 12 2 2 4-4" /></svg>;
-  if (name === "route") return <svg {...common}><circle cx="6" cy="19" r="3" /><circle cx="18" cy="5" r="3" /><path d="M9 19h6a4 4 0 0 0 4-4V9" /></svg>;
-  return <svg {...common}><path d="M4.9 19.1A10 10 0 0 1 4.9 4.9" /><path d="M7.8 16.2a6 6 0 0 1 0-8.4" /><circle cx="12" cy="12" r="2" /><path d="M16.2 7.8a6 6 0 0 1 0 8.4" /><path d="M19.1 4.9a10 10 0 0 1 0 14.2" /></svg>;
 }

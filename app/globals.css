@@ -90,6 +90,28 @@ body {
   border-color: var(--color-edge);
 }
 
+/* ---- light "ops center" glass panel (dashboard v2) ---- */
+.glass {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+}
+/* keep Leaflet tooltips clean + on-brand for the light map */
+.leaflet-tooltip {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12) !important;
+  font-size: 12px !important;
+  color: #111827 !important;
+  padding: 6px 9px !important;
+}
+.leaflet-container {
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;

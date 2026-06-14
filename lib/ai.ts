@@ -1,4 +1,5 @@
 import type { Constraints, MatchResult } from "./types";
+import type { Directions } from "./directions";
 import { formatClock } from "./matcher";
 
 /**
@@ -101,8 +102,8 @@ export function routeReply(
   const travel = match.etaMin != null ? ` ~${match.etaMin} min ${lang === "es" ? "en" : "by"} ${mode}.` : "";
   const call =
     lang === "es"
-      ? ` Responde LLAMAR y aviso que vas en camino.`
-      : ` Reply CALL and I'll let them know you're coming.`;
+      ? ` Responde LLAMAR, o comparte tu ubicación 📍 para un mapa y direcciones.`
+      : ` Reply CALL, or share your location 📍 for a map + directions.`;
 
   return `${stamp} ${r.name} ${space}.${intake}${travel} ${r.address}, ${r.city}.${call}`;
 }
@@ -135,6 +136,28 @@ export function callAhead(resourceName: string, phone: string, c: Constraints, l
   return lang === "es"
     ? `Listo. Le avisé a ${resourceName} que vas en camino ${who}. Su línea de admisión: ${phone}. Pregunta por admisión al llegar.`
     : `Done — I've flagged ${resourceName} that you're on the way ${who}. Their intake line: ${phone}. Ask for intake when you arrive.`;
+}
+
+export function directionsReply(resourceName: string, dir: Directions, lang: Lang): string {
+  const head =
+    lang === "es"
+      ? `🗺️ Direcciones a ${resourceName} (~${dir.durationMin} min, ${dir.distanceMi} mi):`
+      : `🗺️ Directions to ${resourceName} (~${dir.durationMin} min, ${dir.distanceMi} mi):`;
+  const steps = dir.steps
+    .slice(0, 6)
+    .map((s, i) => `${i + 1}. ${s.instruction}${s.distanceFt > 250 ? ` (${fmtDist(s.distanceFt)})` : ""}`)
+    .join("\n");
+  return `${head}\n${steps}`;
+}
+
+export function locationAck(lang: Lang): string {
+  return lang === "es"
+    ? "Recibí tu ubicación 📍. Dime qué necesitas (ej. 'cama esta noche, 2 niños') y busco un refugio cercano."
+    : "Got your location 📍. Tell me what you need (e.g. 'bed tonight, 2 kids') and I'll find a shelter near you.";
+}
+
+function fmtDist(ft: number): string {
+  return ft >= 1000 ? `${(ft / 5280).toFixed(1)} mi` : `${Math.round(ft / 10) * 10} ft`;
 }
 
 // The cutoff time is carried inside the human-readable reasons; pull it back out for copy.

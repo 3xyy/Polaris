@@ -1,14 +1,18 @@
 import type { Conversation } from "./types";
 import { extractConstraints, isCrisis, mergeConstraints } from "./constraints";
 import { backboardEnabled, enrichConstraints } from "./backboard";
+import { getDirections, mapboxConfigured } from "./directions";
 import { rankResources } from "./matcher";
 import { getConversation, getResources, upsertConversation, bumpImpact, getResource } from "./store";
+import { baseUrl } from "./sms";
 import { beginVerification } from "./verify";
 import {
   askZip,
   callAhead,
   crisisReply,
   detectLang,
+  directionsReply,
+  locationAck,
   noMatch,
   routeReply,
   verifying,
@@ -150,6 +154,56 @@ export async function handleInbound(args: {
   await bumpImpact({ verifiedRoutes: 1 });
   await finalize(conv, "routed", [reply]);
   return { replies: [reply], conversation: conv, verificationStarted: false };
+}
+
+/**
+ * Handle a shared precise location (WhatsApp native location, or a geocoded cross-street).
+ * If the person already has a matched shelter, we send real street directions + a map image.
+ */
+export async function handleLocation(args: {
+  from: string;
+  lat: number;
+  lng: number;
+  channel?: "sms" | "voice";
+}): Promise<{ replies: string[]; mediaUrl?: string; conversation: Conversation }> {
+  const { from, lat, lng, channel = "sms" } = args;
+  const now = Date.now();
+
+  let conv = await getConversation(from);
+  if (!conv) {
+    conv = {
+      id: from,
+      pseudonym: pseudonymFor(from),
+      channel,
+      lang: "en",
+      location: { lat, lng },
+      constraints: {},
+      lastMessage: "📍 shared location",
+      lastReplies: [],
+      topMatchId: null,
+      status: "intake",
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+  conv = { ...conv, location: { lat, lng }, lastMessage: "📍 shared location", updatedAt: now };
+
+  if (conv.topMatchId && mapboxConfigured()) {
+    const r = await getResource(conv.topMatchId);
+    if (r) {
+      const dir = await getDirections({ lat, lng }, { lat: r.lat, lng: r.lng });
+      if (dir) {
+        const text = directionsReply(r.name, dir, conv.lang);
+        const mediaUrl = `${baseUrl()}/api/map?cid=${encodeURIComponent(from)}`;
+        await finalize(conv, "routed", [text]);
+        return { replies: [text], mediaUrl, conversation: conv };
+      }
+    }
+  }
+
+  const ack = locationAck(conv.lang);
+  await finalize(conv, conv.status, [ack]);
+  return { replies: [ack], conversation: conv };
 }
 
 async function finalize(

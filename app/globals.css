@@ -7,21 +7,21 @@
    ==================================================================== */
 
 @theme {
-  --color-void: #050810;
-  --color-deep: #080d1c;
-  --color-panel: #0c1326;
-  --color-panel-2: #111a33;
-  --color-edge: #1d2848;
-  --color-ink: #e9edfb;
-  --color-muted: #8b95b9;
-  --color-faint: #4b5680;
-  --color-aurora: #4fd1c5;
-  --color-sky: #38bdf8;
-  --color-north: #f7c95a;
-  --color-confirmed: #35d6a4;
-  --color-stale: #fbbf24;
-  --color-full: #f8716f;
-  --color-violet: #a78bfa;
+  --color-void: #f6f7f8;
+  --color-deep: #ffffff;
+  --color-panel: #ffffff;
+  --color-panel-2: #f3f4f6;
+  --color-edge: #e5e7eb;
+  --color-ink: #111827;
+  --color-muted: #6b7280;
+  --color-faint: #9ca3af;
+  --color-aurora: #2563eb;
+  --color-sky: #2563eb;
+  --color-north: #2563eb;
+  --color-confirmed: #10b981;
+  --color-stale: #f59e0b;
+  --color-full: #ef4444;
+  --color-violet: #8b5cf6;
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -29,48 +29,33 @@
 
 html {
   background: var(--color-void);
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
   color: var(--color-ink);
   font-family: var(--font-sans), system-ui, sans-serif;
   background-color: var(--color-void);
-  /* Layered starfield + the North Star glow up top. Subtle so text stays readable. */
-  background-image:
-    radial-gradient(1100px 600px at 50% -10%, rgba(247, 201, 90, 0.12), transparent 60%),
-    radial-gradient(900px 700px at 85% 10%, rgba(79, 209, 197, 0.08), transparent 60%),
-    radial-gradient(800px 800px at 10% 30%, rgba(56, 189, 248, 0.06), transparent 60%),
-    radial-gradient(1.4px 1.4px at 20% 30%, rgba(255, 255, 255, 0.7), transparent),
-    radial-gradient(1.2px 1.2px at 70% 20%, rgba(255, 255, 255, 0.55), transparent),
-    radial-gradient(1.1px 1.1px at 40% 70%, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 85% 60%, rgba(255, 255, 255, 0.45), transparent),
-    radial-gradient(1px 1px at 15% 85%, rgba(255, 255, 255, 0.4), transparent),
-    radial-gradient(1.3px 1.3px at 60% 90%, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 90% 35%, rgba(255, 255, 255, 0.4), transparent);
+  background-image: radial-gradient(1000px 560px at 50% -12%, rgba(37, 99, 235, 0.05), transparent 60%);
   background-attachment: fixed;
   background-repeat: no-repeat;
 }
 
-/* ---- reusable surfaces ---- */
+/* ---- reusable surfaces (light "ops center" glass) ---- */
 .panel {
   position: relative;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0) 96px),
-    linear-gradient(160deg, rgba(20, 29, 54, 0.92), rgba(11, 17, 34, 0.94));
-  border: 1px solid var(--color-edge);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 18px;
-  backdrop-filter: blur(12px);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
-    0 10px 30px -20px rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .panel-glow {
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
-    0 0 0 1px rgba(79, 209, 197, 0.16),
-    0 0 40px -10px rgba(79, 209, 197, 0.4);
+    0 0 0 1px rgba(37, 99, 235, 0.12),
+    0 14px 36px -14px rgba(37, 99, 235, 0.28);
 }
 
 /* gentle lift for interactive cards */
@@ -79,11 +64,8 @@ body {
 }
 .card-lift:hover {
   transform: translateY(-2px);
-  border-color: rgba(79, 209, 197, 0.4);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
-    0 0 0 1px rgba(79, 209, 197, 0.14),
-    0 22px 44px -26px rgba(0, 0, 0, 0.9);
+  border-color: rgba(37, 99, 235, 0.3);
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.22);
 }
 
 .hairline {
@@ -130,7 +112,7 @@ body {
 }
 
 .text-glow-north {
-  text-shadow: 0 0 24px rgba(247, 201, 90, 0.55);
+  text-shadow: none;
 }
 
 /* ---- animations ---- */

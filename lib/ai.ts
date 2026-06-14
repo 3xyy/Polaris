@@ -146,6 +146,28 @@ export function routeReply(
   return `${stamp} ${r.name} ${space}.${intake}${travel} ${r.address}, ${r.city}.${call}`;
 }
 
+/** The punchy confirmation line (no trailing CALL/location prompt) — used above the directions. */
+export function confirmedHeader(
+  match: MatchResult,
+  c: Constraints,
+  lang: Lang,
+  opts: { justConfirmedSeconds?: number; verifiedMinutesAgo?: number } = {},
+): string {
+  const r = match.resource;
+  const who = childPhrase(c, lang);
+  const cutoffRaw = cutoffStrFromReasons(match);
+  const cutoff = cutoffRaw ? formatClock(cutoffRaw) : "";
+  const mode = c.noCar ? (lang === "es" ? "transporte" : "transit") : lang === "es" ? "auto" : "car";
+  const stamp =
+    opts.justConfirmedSeconds != null
+      ? lang === "es" ? `✅ Confirmado hace ${opts.justConfirmedSeconds}s:` : `✅ Confirmed ${opts.justConfirmedSeconds}s ago:`
+      : lang === "es" ? `✅ Verificado hace ${opts.verifiedMinutesAgo ?? 0} min:` : `✅ Verified ${opts.verifiedMinutesAgo ?? 0} min ago:`;
+  const space = lang === "es" ? `tiene espacio esta noche ${who}` : `has space tonight ${who}`;
+  const intake = cutoff ? (lang === "es" ? ` Admisión cierra ${cutoff}.` : ` Intake closes ${cutoff}.`) : "";
+  const travel = match.etaMin != null ? ` ~${match.etaMin} min ${lang === "es" ? "en" : "by"} ${mode}.` : "";
+  return `${stamp} ${r.name} ${space}.${intake}${travel}`;
+}
+
 export function fullFallback(nextName: string | null, lang: Lang): string {
   if (!nextName) {
     return lang === "es"

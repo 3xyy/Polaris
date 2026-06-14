@@ -13,7 +13,7 @@ import {
   getConversation,
 } from "./store";
 import { bedsNeededFor, nearestByType, rankResources } from "./matcher";
-import { directionsReply, fullFallback, planExtras, routeReply } from "./ai";
+import { confirmedHeader, directionsReply, fullFallback, planExtras, routeReply } from "./ai";
 import { getDirections, mapboxConfigured } from "./directions";
 
 /**
@@ -50,6 +50,9 @@ export async function composeRoute(
   opts: { justConfirmedSeconds?: number; verifiedMinutesAgo?: number } = {},
 ): Promise<RouteMessage> {
   const resources = await getResources();
+  const match = rankResources(conv.constraints, resources, new Date(), conv.location).find(
+    (m) => m.resource.id === resource.id,
+  );
 
   if (conv.location && mapboxConfigured()) {
     const dir = await getDirections(conv.location, { lat: resource.lat, lng: resource.lng });
@@ -69,11 +72,13 @@ export async function composeRoute(
         ].filter(Boolean) as { icon: string; name: string; distanceMi: number }[],
         lang,
       );
-      const confirm = lang === "es" ? `✅ ${resource.name} confirmado. ` : `✅ ${resource.name} confirmed. `;
+      const header = match
+        ? confirmedHeader(match, conv.constraints, lang, opts)
+        : lang === "es" ? `✅ ${resource.name} confirmado.` : `✅ ${resource.name} confirmed.`;
       const callLine = lang === "es" ? "\n\nResponde LLAMAR para conectar." : "\n\nReply CALL to connect.";
       const token = randomBytes(24).toString("base64url");
       return {
-        text: confirm + directionsReply(resource.name, dir, lang) + extras + callLine,
+        text: header + "\n\n" + directionsReply(resource.name, dir, lang) + extras + callLine,
         mediaUrl: `${baseUrl()}/api/map?t=${token}`,
         routePolyline: dir.polyline,
         mapToken: token,
@@ -83,9 +88,6 @@ export async function composeRoute(
   }
 
   // Fallback: no location / no Mapbox — the confirmation-style route reply.
-  const match = rankResources(conv.constraints, resources, new Date(), conv.location).find(
-    (m) => m.resource.id === resource.id,
-  );
   return { text: match ? routeReply(match, conv.constraints, lang, opts) : `✅ ${resource.name} — head there now.` };
 }
 

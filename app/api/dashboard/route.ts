@@ -1,4 +1,5 @@
 import { confidenceFor } from "@/lib/matcher";
+import { centroidForZip } from "@/lib/geo";
 import {
   getImpact,
   getResources,
@@ -7,7 +8,8 @@ import {
 } from "@/lib/store";
 
 // Single read endpoint the Live Sky dashboard polls (every ~2s). Returns everything the
-// mission-control view renders, with freshness/confidence computed server-side against `now`.
+// mission-control view renders, with freshness/confidence computed server-side against `now`,
+// plus coordinates so the live map can plot shelters and people.
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +28,8 @@ export async function GET() {
     type: r.type,
     city: r.city,
     zip: r.zip,
+    lat: r.lat,
+    lng: r.lng,
     openBeds: r.openBeds,
     totalBeds: r.totalBeds,
     genderPolicy: r.genderPolicy,
@@ -37,10 +41,27 @@ export async function GET() {
     confidence: Math.round(confidenceFor(r, now) * 100),
   }));
 
+  // Attach a plottable position to each conversation: exact shared location if we have it,
+  // otherwise the centroid of their ZIP. People with neither are left without coords.
+  const conversationViews = conversations.map((c) => {
+    const coords = c.location ?? (c.constraints.zip ? centroidForZip(c.constraints.zip) : null);
+    return {
+      id: c.id,
+      pseudonym: c.pseudonym,
+      lang: c.lang,
+      constraints: c.constraints,
+      lastMessage: c.lastMessage,
+      status: c.status,
+      topMatchId: c.topMatchId,
+      updatedAt: c.updatedAt,
+      coords,
+    };
+  });
+
   return Response.json({
     now,
     impact,
-    conversations,
+    conversations: conversationViews,
     verifications,
     resources: resourceViews,
   });

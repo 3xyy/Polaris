@@ -113,6 +113,7 @@ export interface Conversation {
   pseudonym: string; // friendly handle shown on the dashboard (no PII)
   channel: "sms" | "voice";
   lang: "en" | "es";
+  location?: { lat: number; lng: number }; // set when the user shares a precise location
   constraints: Constraints;
   lastMessage: string;
   lastReplies: string[];

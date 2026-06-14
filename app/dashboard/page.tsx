@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { Donut } from "@/components/Donut";
+
+// Leaflet touches `window`, so load the map client-only.
+const LiveMap = dynamic(() => import("@/components/LiveMap").then((m) => m.LiveMap), {
+  ssr: false,
+  loading: () => <div className="grid h-full place-items-center text-[13px] text-faint">Loading map…</div>,
+});
 
 // ---- shapes returned by /api/dashboard ----
 interface Constraints {
@@ -21,6 +28,8 @@ interface Conversation {
   constraints: Constraints;
   lastMessage: string;
   status: string;
+  topMatchId: string | null;
+  coords: { lat: number; lng: number } | null;
   updatedAt: number;
 }
 interface Verification {
@@ -36,6 +45,8 @@ interface ResourceView {
   name: string;
   type: string;
   city: string;
+  lat: number;
+  lng: number;
   openBeds: number;
   totalBeds: number;
   genderPolicy: string;
@@ -133,6 +144,23 @@ export default function Dashboard() {
         <Kpi label="Ghost beds avoided" value={data?.impact.ghostBedsAvoided ?? 0} tone="full" hint="full / no-answer caught before routing" icon="shield" />
         <Kpi label="Verified routes" value={data?.impact.verifiedRoutes ?? 0} tone="confirmed" hint="confirmed beds sent to people" icon="route" />
         <Kpi label="Provider updates" value={data?.impact.providerUpdates ?? 0} tone="sky" hint="live beacons from shelters" icon="signal" />
+      </div>
+
+      {/* live map */}
+      <div className="panel mt-4 p-4">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold tracking-wide text-ink">Live Sky Map</h2>
+          <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted">
+            <LegendDot color="#35d6a4" label="open / verified" />
+            <LegendDot color="#fbbf24" label="aging" />
+            <LegendDot color="#f8716f" label="full" />
+            <LegendDot color="#38bdf8" label="person" ring />
+            <span className="mono text-faint">— route in progress</span>
+          </div>
+        </div>
+        <div className="h-[340px] overflow-hidden rounded-xl border border-edge">
+          <LiveMap resources={data?.resources ?? []} people={data?.conversations ?? []} />
+        </div>
       </div>
 
       {/* main grid */}
@@ -394,6 +422,14 @@ function Constellation({ resources, now }: { resources: ResourceView[]; now: num
 // ---------------- small bits ----------------
 function Tag({ children }: { children: React.ReactNode }) {
   return <span className="rounded bg-white/5 px-1.5 py-0.5 text-muted">{children}</span>;
+}
+function LegendDot({ color, label, ring }: { color: string; label: string; ring?: boolean }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="h-2.5 w-2.5 rounded-full" style={{ background: color, boxShadow: ring ? "0 0 0 2px #fff inset" : undefined }} />
+      {label}
+    </span>
+  );
 }
 function Empty({ hint }: { hint: string }) {
   return <div className="grid h-full min-h-[120px] place-items-center text-center text-[13px] text-faint">{hint}</div>;
